@@ -1,0 +1,16 @@
+{
+  "name": "budget-split-expenser-database",
+  "version": "1.0.0",
+  "description": "Database setup for Budget Split Expenser application",
+  "main": "setup.js",
+  "scripts": {
+    "setup": "node setup.js",
+    "seed": "node setup.js"
+  },
+  "dependencies": {
+    "mongodb": "^4.17.1"
+  },
+  "keywords": ["mongodb", "database", "setup"],
+  "author": "",
+  "license": "MIT"
+}

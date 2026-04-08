@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Login</title>
+</head>
+<body>
+    <h1>Test Login Setup</h1>
+    <p>Creating test user in localStorage...</p>
+    <script>
+        // Create a test user
+        const testUser = {
+            id: '1',
+            name: 'Test User',
+            email: 'test@test.com',
+            password: '123456'
+        };
+        
+        localStorage.setItem('users', JSON.stringify([testUser]));
+        console.log('Test user created:', testUser);
+        
+        // Check if user is stored
+        const storedUsers = JSON.parse(localStorage.getItem('users') || '[]');
+        console.log('Stored users:', storedUsers);
+        
+        document.write('<p>Test user created successfully!</p>');
+        document.write('<p>Email: test@test.com</p>');
+        document.write('<p>Password: 123456</p>');
+        document.write('<p><a href="http://localhost:5175" target="_blank">Go to App</a></p>');
+    </script>
+</body>
+</html>

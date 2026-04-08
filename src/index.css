@@ -1,0 +1,85 @@
+/* Custom Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Roboto:wght@300;400;500;700&family=Dancing+Script:wght@700&family=Bebas+Neue&family=Pacifico&family=Caveat:wght@700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Color Classes */
+.text-gradient-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-secondary {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-tertiary {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-gold {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Custom Font Classes */
+.font-playfair {
+  font-family: 'Playfair Display', serif;
+}
+
+.font-roboto {
+  font-family: 'Roboto', sans-serif;
+}
+
+.font-dancing {
+  font-family: 'Dancing Script', cursive;
+}
+
+.font-bebas {
+  font-family: 'Bebas Neue', cursive;
+}
+
+.font-pacifico {
+  font-family: 'Pacifico', cursive;
+}
+
+.font-caveat {
+  font-family: 'Caveat', cursive;
+}
+
+/* Color Variations */
+.text-purple-vibrant {
+  color: #8B5CF6;
+}
+
+.text-pink-vibrant {
+  color: #EC4899;
+}
+
+.text-blue-vibrant {
+  color: #3B82F6;
+}
+
+.text-green-vibrant {
+  color: #10B981;
+}
+
+.text-orange-vibrant {
+  color: #F97316;
+}
+
+.text-red-vibrant {
+  color: #EF4444;
+}
