@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
-    "server": "node server/server.mjs",
+    "server": "node server/server.js",
     "start": "npm run server",
     "setup": "npm install && npm run server"
   },
@@ -23,6 +23,7 @@
     "idb": "^8.0.3",
     "lucide-react": "^0.344.0",
     "mongodb": "^7.1.0",
+    "qrcode.react": "^4.2.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tesseract.js": "^7.0.0"

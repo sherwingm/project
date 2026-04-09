@@ -20,6 +20,13 @@ interface CalculatorProps {
 }
 
 export function FairnessCalculator({ onBack, groupMembers, groupExpenses }: CalculatorProps) {
+  const currencyFormatter = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
   const [people, setPeople] = useState<Person[]>(
     groupMembers && groupExpenses
       ? calculateFromGroupData(groupMembers, groupExpenses)
@@ -114,7 +121,7 @@ export function FairnessCalculator({ onBack, groupMembers, groupExpenses }: Calc
   };
 
   const copyToClipboard = (settlement: PaymentPlan, index: number) => {
-    const text = `${settlement.from} pays ${settlement.to} $${settlement.amount.toFixed(2)}`;
+    const text = `${settlement.from} pays ${settlement.to} ${currencyFormatter.format(settlement.amount)}`;
     navigator.clipboard.writeText(text);
     setCopiedIndex(index);
     setTimeout(() => setCopiedIndex(null), 2000);
@@ -125,78 +132,56 @@ export function FairnessCalculator({ onBack, groupMembers, groupExpenses }: Calc
   const settlements = calculateSettlement();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-8">
-      <div className="max-w-5xl mx-auto px-4">
-        {/* Header */}
-        <div className="flex items-center space-x-4 mb-8">
-          <button
-            onClick={onBack}
-            className="p-2 hover:bg-white rounded-lg transition-colors"
-          >
-            <ArrowLeft className="w-6 h-6 text-gray-700" />
+    <div className="min-h-screen bg-[#0f0f1a] py-8 text-slate-100">
+      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,rgba(124,58,237,0.18),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(6,182,212,0.12),transparent_34%)]" />
+      <div className="mx-auto max-w-5xl px-4">
+        <div className="mb-8 flex items-center gap-4">
+          <button onClick={onBack} className="rounded-2xl border border-white/10 bg-white/5 p-2 transition hover:bg-white/10">
+            <ArrowLeft className="h-6 w-6 text-slate-200" />
           </button>
-          <h1 className="text-3xl font-bold text-gray-900">Fairness Calculator</h1>
+          <div>
+            <p className="text-xs uppercase tracking-[0.28em] text-violet-300/70">Calculator</p>
+            <h1 className="font-display text-3xl font-bold tracking-tight text-white">Fairness Calculator</h1>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Input Section */}
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center space-x-2">
-                <Calculator className="w-5 h-5" />
+            <div className="dark-card rounded-[28px] p-6">
+              <h2 className="mb-6 flex items-center gap-2 text-xl font-semibold text-white">
+                <Calculator className="h-5 w-5 text-cyan-300" />
                 <span>Add Expenses</span>
               </h2>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Person Name</label>
-                  <input
-                    type="text"
-                    value={newPersonName}
-                    onChange={(e) => setNewPersonName(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter name"
-                  />
+                  <label className="mb-2 block text-sm font-medium text-slate-300">Person Name</label>
+                  <input type="text" value={newPersonName} onChange={(e) => setNewPersonName(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-slate-100 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/25" placeholder="Enter name" />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Amount Spent</label>
-                  <input
-                    type="number"
-                    value={newPersonAmount}
-                    onChange={(e) => setNewPersonAmount(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter amount"
-                    step="0.01"
-                    min="0"
-                  />
+                  <label className="mb-2 block text-sm font-medium text-slate-300">Amount Spent</label>
+                  <input type="number" value={newPersonAmount} onChange={(e) => setNewPersonAmount(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-slate-100 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/25" placeholder="Enter amount" step="0.01" min="0" />
                 </div>
 
-                <button
-                  onClick={handleAddPerson}
-                  className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold flex items-center justify-center space-x-2"
-                >
-                  <Plus className="w-5 h-5" />
+                <button onClick={handleAddPerson} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-500 to-cyan-500 px-4 py-3 font-semibold text-white shadow-[0_16px_40px_rgba(124,58,237,0.22)] transition hover:from-violet-400 hover:to-cyan-400">
+                  <Plus className="h-5 w-5" />
                   <span>Add Person</span>
                 </button>
               </div>
 
-              {/* People List */}
               <div className="mt-6 space-y-2">
                 {people.length === 0 ? (
-                  <p className="text-gray-500 text-center py-4">No people added yet</p>
+                  <p className="py-4 text-center text-slate-400">No people added yet</p>
                 ) : (
-                  people.map(person => (
-                    <div key={person.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  people.map((person) => (
+                    <div key={person.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-3">
                       <div className="flex-1">
-                        <p className="font-medium text-gray-900">{person.name}</p>
-                        <p className="text-sm text-gray-500">${person.amount.toFixed(2)}</p>
+                        <p className="font-medium text-white">{person.name}</p>
+                        <p className="text-sm text-slate-400">{currencyFormatter.format(person.amount)}</p>
                       </div>
-                      <button
-                        onClick={() => handleRemovePerson(person.id)}
-                        className="p-1 hover:bg-red-100 rounded transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-600" />
+                      <button onClick={() => handleRemovePerson(person.id)} className="rounded-xl border border-white/10 bg-white/5 p-1 transition hover:bg-rose-500/10">
+                        <Trash2 className="h-4 w-4 text-rose-300" />
                       </button>
                     </div>
                   ))
@@ -205,40 +190,35 @@ export function FairnessCalculator({ onBack, groupMembers, groupExpenses }: Calc
             </div>
           </div>
 
-          {/* Results Section */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Summary Cards */}
+          <div className="space-y-6 lg:col-span-2">
             {people.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <p className="text-gray-600 text-sm mb-2">Total Paid</p>
-                  <p className="text-3xl font-bold text-green-600">${totalPaid.toFixed(2)}</p>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="dark-card rounded-[24px] p-6">
+                  <p className="mb-2 text-sm text-slate-400">Total Paid</p>
+                  <p className="text-3xl font-bold text-emerald-300">{currencyFormatter.format(totalPaid)}</p>
                 </div>
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <p className="text-gray-600 text-sm mb-2">Total Owed</p>
-                  <p className="text-3xl font-bold text-red-600">${totalOwed.toFixed(2)}</p>
+                <div className="dark-card rounded-[24px] p-6">
+                  <p className="mb-2 text-sm text-slate-400">Total Owed</p>
+                  <p className="text-3xl font-bold text-rose-300">{currencyFormatter.format(totalOwed)}</p>
                 </div>
               </div>
             )}
 
-            {/* Who Paid What */}
             {people.length > 0 && (
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Balances</h3>
+              <div className="dark-card rounded-[28px] p-6">
+                <h3 className="mb-4 text-lg font-semibold text-white">Personal Balances</h3>
                 <div className="space-y-3">
                   {people.map((person) => {
                     const balance = person.amount;
                     const isCreditor = balance > 0.01;
                     return (
-                      <div key={person.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border-l-4" style={{borderColor: isCreditor ? '#10b981' : '#ef4444'}}>
+                      <div key={person.id} className="flex items-center justify-between rounded-2xl border-l-4 border-white/10 bg-white/5 p-3" style={{ borderColor: isCreditor ? '#34d399' : '#fda4af' }}>
                         <div className="flex-1">
-                          <p className="font-medium text-gray-900">{person.name}</p>
-                          <p className="text-sm text-gray-500">
-                            {isCreditor ? 'Should receive' : 'Should pay'}
-                          </p>
+                          <p className="font-medium text-white">{person.name}</p>
+                          <p className="text-sm text-slate-400">{isCreditor ? 'Should receive' : 'Should pay'}</p>
                         </div>
-                        <div className={`text-right font-semibold ${isCreditor ? 'text-green-600' : 'text-red-600'}`}>
-                          {isCreditor ? '✓ $' : '✗ $'}{Math.abs(balance).toFixed(2)}
+                        <div className={`text-right font-semibold ${isCreditor ? 'text-emerald-300' : 'text-rose-300'}`}>
+                          {isCreditor ? '✓ ' : '✗ '}{currencyFormatter.format(Math.abs(balance))}
                         </div>
                       </div>
                     );
@@ -247,40 +227,28 @@ export function FairnessCalculator({ onBack, groupMembers, groupExpenses }: Calc
               </div>
             )}
 
-            {/* Settlement Plan */}
             {settlements.length > 0 && (
-              <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg shadow-md p-6 border border-green-200">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-                    <TrendingUp className="w-5 h-5 text-green-600" />
+              <div className="dark-card rounded-[28px] p-6">
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
+                    <TrendingUp className="h-5 w-5 text-cyan-300" />
                     <span>Settlement Plan</span>
                   </h3>
-                  <p className="text-sm text-gray-600">{settlements.length} transaction(s)</p>
+                  <p className="text-sm text-slate-400">{settlements.length} transaction(s)</p>
                 </div>
                 <div className="space-y-3">
                   {settlements.map((settlement, idx) => (
-                    <div 
-                      key={idx} 
-                      className="flex items-center justify-between p-4 bg-white rounded-lg hover:shadow-md transition-shadow"
-                    >
+                    <div key={idx} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-4">
                       <div className="flex-1">
-                        <p className="font-medium text-gray-900">
-                          <span className="text-red-600 font-semibold">{settlement.from}</span>
-                          <span className="text-gray-500 mx-2">→</span>
-                          <span className="text-green-600 font-semibold">{settlement.to}</span>
+                        <p className="font-medium text-white">
+                          <span className="font-semibold text-rose-300">{settlement.from}</span>
+                          <span className="mx-2 text-slate-500">→</span>
+                          <span className="font-semibold text-emerald-300">{settlement.to}</span>
                         </p>
-                        <p className="text-sm text-gray-500 mt-1">${settlement.amount.toFixed(2)}</p>
+                        <p className="mt-1 text-sm text-slate-400">{currencyFormatter.format(settlement.amount)}</p>
                       </div>
-                      <button
-                        onClick={() => copyToClipboard(settlement, idx)}
-                        className="p-2 hover:bg-blue-100 rounded transition-colors"
-                        title="Copy to clipboard"
-                      >
-                        {copiedIndex === idx ? (
-                          <Check className="w-5 h-5 text-green-600" />
-                        ) : (
-                          <Copy className="w-5 h-5 text-blue-600" />
-                        )}
+                      <button onClick={() => copyToClipboard(settlement, idx)} className="rounded-xl border border-white/10 bg-white/5 p-2 transition hover:bg-white/10" title="Copy to clipboard">
+                        {copiedIndex === idx ? <Check className="h-5 w-5 text-emerald-300" /> : <Copy className="h-5 w-5 text-cyan-300" />}
                       </button>
                     </div>
                   ))}
@@ -289,8 +257,8 @@ export function FairnessCalculator({ onBack, groupMembers, groupExpenses }: Calc
             )}
 
             {people.length === 0 && (
-              <div className="bg-white rounded-lg shadow-md p-12 text-center">
-                <p className="text-gray-500 text-lg">Add people and amounts to see the settlement plan</p>
+              <div className="dark-card rounded-[28px] p-12 text-center">
+                <p className="text-lg text-slate-400">Add people and amounts to see the settlement plan</p>
               </div>
             )}
           </div>

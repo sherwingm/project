@@ -80,21 +80,21 @@ export function ProfileDropdown({
       {/* Profile Avatar Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
+        className="flex items-center space-x-2 rounded-xl border border-white/10 bg-white/5 p-2 text-slate-200 transition-all duration-200 hover:bg-white/10"
       >
-        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+        <div className="flex h-8 w-8 items-center justify-center rounded-full border border-violet-400/60 bg-gradient-to-br from-violet-500 to-cyan-500 font-semibold text-sm text-white">
           {userName.charAt(0).toUpperCase()}
         </div>
-        <ChevronDown className={`w-4 h-4 text-gray-600 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-4 h-4 text-slate-300 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden z-50">
+        <div className="absolute right-0 z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-white/8 bg-[#1a1a2e] shadow-2xl shadow-slate-950/40">
           {/* Header Section */}
-          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-            <p className="text-xs text-gray-500 mb-1">Signed in as</p>
-            <p className="text-sm font-semibold text-gray-900 truncate">{userEmail}</p>
+          <div className="border-b border-white/8 px-4 py-3 bg-white/5">
+            <p className="mb-1 text-xs text-slate-400">Signed in as</p>
+            <p className="truncate text-sm font-semibold text-slate-100">{userEmail}</p>
           </div>
 
           {/* Menu Items */}
@@ -108,14 +108,14 @@ export function ProfileDropdown({
                     item.onClick();
                     setIsOpen(false);
                   }}
-                  className="w-full px-4 py-3 flex items-center space-x-3 hover:bg-gray-50 transition-colors duration-200 text-left group"
+                    className="group flex w-full items-center space-x-3 px-4 py-3 text-left transition-colors duration-200 hover:bg-white/5"
                 >
-                  <div className="flex-shrink-0 w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors duration-200">
+                    <div className="flex h-5 w-5 flex-shrink-0 text-slate-400 transition-colors duration-200 group-hover:text-white">
                     <Icon className="w-full h-full" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{item.title}</p>
-                    <p className="text-xs text-gray-500 truncate">{item.subtitle}</p>
+                      <p className="truncate text-sm font-semibold text-slate-100">{item.title}</p>
+                      <p className="truncate text-xs text-slate-400">{item.subtitle}</p>
                   </div>
                 </button>
               );

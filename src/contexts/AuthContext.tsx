@@ -6,6 +6,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, phone: string, password: string) => Promise<void>;
   register: (name: string, email: string, phone: string, password: string) => Promise<void>;
+  updateUser: (user: User) => void;
   logout: () => void;
 }
 
@@ -51,6 +52,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateUser = (updatedUser: User) => {
+    setUser(updatedUser);
+    localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+  };
+
   const logout = () => {
     console.log('AuthContext logout called');
     apiService.logout();
@@ -61,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   console.log('AuthProvider render - user:', user, 'isLoading:', isLoading);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, updateUser, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -9,6 +9,13 @@ interface GroupCardProps {
     members: number;
     date: string;
     totalExpenses: number;
+    shareToken?: string;
+    variantIndex?: number;
+    expenses?: Array<{
+      id: string;
+      name: string;
+      amount: number;
+    }>;
     currency: string;
     imageUrl?: string;
   };
@@ -17,15 +24,49 @@ interface GroupCardProps {
 
   // ✅ UPDATED: no argument (same as GroupView)
   onAddExpense?: () => void;
+  onPayNow?: () => void;
+  showPayNow?: boolean;
+  showSettledBadge?: boolean;
 }
 
 const GroupCard: React.FC<GroupCardProps> = ({
   group,
   onViewDetails,
   onDelete,
-  onAddExpense
+  onAddExpense,
+  onPayNow,
+  showPayNow = false,
+  showSettledBadge = false
 }) => {
   const [isCopied, setIsCopied] = useState(false);
+
+  const getGroupEmoji = () => {
+    const value = group.name.toLowerCase();
+    if (value.includes('trip') || value.includes('travel') || value.includes('vacation') || value.includes('tour')) return '🏖️';
+    if (value.includes('food') || value.includes('dinner') || value.includes('lunch') || value.includes('meal')) return '🍜';
+    if (value.includes('party') || value.includes('birthday') || value.includes('event')) return '🎉';
+    if (value.includes('rent') || value.includes('home') || value.includes('room')) return '🏠';
+    if (value.includes('work') || value.includes('office')) return '💼';
+    return '🧳';
+  };
+
+  const gradientPalettes = [
+    'from-[#1A1A2E] via-[#24134A] to-[#2D1B69]',
+    'from-[#0F2027] via-[#203A43] to-[#2C5364]',
+    'from-[#1A0533] via-[#2E1065] to-[#3B0764]',
+    'from-[#0D1117] via-[#172554] to-[#1C2951]',
+    'from-[#111827] via-[#312E81] to-[#0F766E]',
+  ];
+
+  const palette = gradientPalettes[(group.variantIndex ?? 0) % gradientPalettes.length];
+
+  const formatAmount = (value: number) =>
+    new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
 
   const getCoverImageUrl = () => {
     if (group.imageUrl) return group.imageUrl;
@@ -50,18 +91,22 @@ const GroupCard: React.FC<GroupCardProps> = ({
 
   const handleCopy = async () => {
     if (group.id) {
-      console.log('Attempting to copy share code:', group.id);
+      const shareLink = group.shareToken
+        ? `${window.location.origin}/share/${group.shareToken}`
+        : `${window.location.origin}?join=${group.id}`;
+
+      console.log('Attempting to copy share link:', shareLink);
       
       try {
-        await navigator.clipboard.writeText(group.id);
-        console.log('Share code copied successfully');
+        await navigator.clipboard.writeText(shareLink);
+        console.log('Share link copied successfully');
         setIsCopied(true);
         setTimeout(() => setIsCopied(false), 2000);
       } catch (err) {
         console.error('Failed to copy:', err);
         // Fallback for older browsers
         const textArea = document.createElement('textarea');
-        textArea.value = group.id;
+        textArea.value = shareLink;
         document.body.appendChild(textArea);
         textArea.select();
         document.execCommand('copy');
@@ -74,7 +119,9 @@ const GroupCard: React.FC<GroupCardProps> = ({
 
   const handleNativeShare = async () => {
     if (group.id && typeof navigator.share === 'function') {
-      const joinLink = `${window.location.origin}?join=${group.id}`;
+      const joinLink = group.shareToken
+        ? `${window.location.origin}/share/${group.shareToken}`
+        : `${window.location.origin}?join=${group.id}`;
       const shareMessage = `Join my expense group "${group.name}"`;
       
       try {
@@ -94,7 +141,9 @@ const GroupCard: React.FC<GroupCardProps> = ({
 
   const handleWhatsAppShare = () => {
     if (group.id) {
-      const joinLink = `${window.location.origin}?join=${group.id}`;
+      const joinLink = group.shareToken
+        ? `${window.location.origin}/share/${group.shareToken}`
+        : `${window.location.origin}?join=${group.id}`;
       const message = `Join my expense group "${group.name}" using this link: ${joinLink}`;
       const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
       window.open(whatsappUrl, '_blank');
@@ -103,148 +152,138 @@ const GroupCard: React.FC<GroupCardProps> = ({
 
   return (
     <div
-      className="relative bg-white rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer overflow-hidden group"
+      className="group relative cursor-pointer overflow-hidden rounded-3xl border border-white/8 bg-[#1a1a2e] shadow-[0_24px_80px_rgba(2,6,23,0.45)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_28px_90px_rgba(124,58,237,0.2)]"
       onClick={() => group.id && onViewDetails(group.id)}
     >
-      {/* Background */}
-      <div
-        className="relative h-32 bg-cover bg-center rounded-t-2xl"
-        style={{
-          backgroundImage: `url('${getCoverImageUrl()}')`,
-        }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+      <div className={`relative min-h-[280px] bg-gradient-to-br ${palette}`}>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.16),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(6,182,212,0.12),transparent_32%)]" />
+        <div className="absolute inset-0 bg-black/10" />
 
-        <div className="absolute top-4 right-4 bg-blue-500 p-2 rounded-full shadow-lg">
-          <Plane className="w-5 h-5 text-white" />
-        </div>
+        <div className="relative flex h-full min-h-[280px] flex-col">
+          <div className="flex items-start justify-between p-4 text-white/95">
+            <div className="rounded-full border border-white/15 bg-black/20 px-3 py-1 text-xs font-medium backdrop-blur-sm">
+              👥 {group.members} members
+            </div>
+            <div className="rounded-full border border-white/15 bg-black/20 px-3 py-1 text-xs font-medium backdrop-blur-sm">
+              {group.date}
+            </div>
+          </div>
 
-        <div className="absolute bottom-4 left-4 flex items-center text-white text-lg font-semibold">
-          <MapPin className="w-5 h-5 mr-2" />
-          <span>{group.name}</span>
-        </div>
-      </div>
+          <div className="flex flex-1 items-center justify-center px-6 pb-2 pt-2 text-6xl drop-shadow-[0_12px_28px_rgba(0,0,0,0.35)]">
+            {getGroupEmoji()}
+          </div>
 
-      {/* Content */}
-      <div className="p-6">
-        <h3 className="text-2xl font-bold text-gradient-gold font-pacifico mb-4 capitalize">
-          {group.location}
-        </h3>
+          <div className="px-5 pb-4 pt-2">
+            <h3 className="font-display text-[22px] font-bold tracking-tight text-slate-50">
+              {group.name}
+            </h3>
+          </div>
 
-        <div className="flex items-center text-gray-700 mb-2">
-          <Users className="w-4 h-4 mr-2 text-gray-500" />
-          <span>{group.members} travelers</span>
-        </div>
+          <div className="mt-auto border-t border-white/8 bg-black/30 px-5 py-4 backdrop-blur-md">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-sm text-slate-400">Total expenses</span>
+              <div className="flex items-center gap-2">
+                {showSettledBadge && (
+                  <span className="rounded-full border border-emerald-400/30 bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-100">
+                    ✓ Settled
+                  </span>
+                )}
+                <span className="font-sans text-sm font-medium text-cyan-300">{group.location}</span>
+              </div>
+            </div>
 
-        <div className="flex items-center text-gray-700 mb-4">
-          <Calendar className="w-4 h-4 mr-2 text-gray-500" />
-          <span>{group.date}</span>
-        </div>
+            <div className="font-sans text-3xl font-semibold tabular-nums text-cyan-300">
+              {formatAmount(group.totalExpenses || 0)}
+            </div>
 
-        {/* Share Code */}
-        <div className="flex items-center justify-between bg-gray-100 rounded-lg px-3 py-2 mb-4">
-          <span className="font-mono text-gray-700 text-sm truncate flex-1 mr-2">
-            {window.location.origin}?join={group.id}
-          </span>
+            {showPayNow && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onPayNow?.();
+                }}
+                className="mt-4 w-full rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 px-4 py-3 font-sans font-semibold text-white shadow-lg shadow-emerald-600/20 transition-all duration-200 hover:brightness-110"
+              >
+                ⚡ Pay Now
+              </button>
+            )}
 
-          <div className="flex space-x-2">
-            {/* Copy */}
             <button
+              type="button"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                handleCopy();
+
+                if (onAddExpense) {
+                  onAddExpense();
+                  return;
+                }
+
+                if (group.id) {
+                  onViewDetails(group.id);
+                }
               }}
-              className={`transition-colors ${
-                isCopied ? 'text-green-600' : 'text-gray-600 hover:text-gray-800'
-              }`}
-              title={isCopied ? 'Code copied!' : 'Copy share code'}
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 px-4 py-3 font-sans font-semibold text-white shadow-lg shadow-violet-500/20 transition-all duration-200 hover:scale-[1.02] hover:shadow-violet-500/30"
             >
-              {isCopied ? (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              ) : (
-                <Copy className="w-4 h-4" />
-              )}
+              <Plus className="h-4 w-4" />
+              <span>Add Expense</span>
             </button>
 
-            {/* Native Share (for mobile) */}
-            {typeof navigator.share === 'function' && (
+            <div className="mt-3 flex items-center justify-between gap-2">
               <button
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  handleNativeShare();
+                  handleCopy();
                 }}
-                className="text-gray-600 hover:text-blue-600 transition-colors"
-                title="Share via apps"
+                className="flex h-10 flex-1 items-center justify-center rounded-lg border border-white/8 bg-white/5 text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
+                title={isCopied ? 'Link copied!' : 'Copy share link'}
               >
-                <Share2 className="w-4 h-4" />
+                <Copy className="h-4 w-4" />
               </button>
-            )}
 
-            {/* WhatsApp Share */}
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleWhatsAppShare();
-              }}
-              className="text-gray-600 hover:text-green-600 transition-colors"
-              title="Share on WhatsApp"
-            >
-              <MessageCircle className="w-4 h-4" />
-            </button>
+              {typeof navigator.share === 'function' && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleNativeShare();
+                  }}
+                  className="flex h-10 flex-1 items-center justify-center rounded-lg border border-white/8 bg-white/5 text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
+                  title="Share via apps"
+                >
+                  <Share2 className="h-4 w-4" />
+                </button>
+              )}
 
-            {/* Delete */}
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onDelete(group.id || '');
-              }}
-              className="text-gray-600 hover:text-red-600 transition-colors"
-              title="Delete group"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleWhatsAppShare();
+                }}
+                className="flex h-10 flex-1 items-center justify-center rounded-lg border border-white/8 bg-white/5 text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
+                title="Share on WhatsApp"
+              >
+                <MessageCircle className="h-4 w-4" />
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onDelete(group.id || '');
+                }}
+                className="flex h-10 flex-1 items-center justify-center rounded-lg border border-white/8 bg-white/5 text-slate-300 transition-colors hover:bg-red-500/10 hover:text-red-300"
+                title="Delete group"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
-
-        {/* Expenses */}
-        <div className="border-t border-gray-200 pt-4 mt-4">
-          <div className="flex items-center justify-between">
-            <span className="text-lg font-semibold text-gray-800">
-              Total expenses:
-            </span>
-            <span className="text-lg font-bold text-purple-600">
-              ₹{group.totalExpenses ? group.totalExpenses.toFixed(2) : '0.00'}
-            </span>
-          </div>
-        </div>
-
-        {/* ✅ FIXED BUTTON */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-
-            if (onAddExpense) {
-              onAddExpense(); // ✅ SAME behavior as GroupView
-              return;
-            }
-
-            if (group.id) {
-              onViewDetails(group.id);
-            }
-          }}
-          className="mt-4 w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add Expense</span>
-        </button>
       </div>
     </div>
   );

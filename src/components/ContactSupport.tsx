@@ -78,129 +78,94 @@ export function ContactSupport({ onBack }: SupportProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        {/* Header */}
-        <div className="flex items-center space-x-4 mb-8">
-          <button
-            onClick={onBack}
-            className="p-2 hover:bg-white rounded-lg transition-colors"
-          >
-            <ArrowLeft className="w-6 h-6 text-gray-700" />
+    <div className="min-h-screen bg-[#0f0f1a] py-8 text-slate-100">
+      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,rgba(124,58,237,0.18),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(6,182,212,0.12),transparent_34%)]" />
+      <div className="mx-auto max-w-4xl px-4">
+        <div className="mb-8 flex items-center gap-4">
+          <button onClick={onBack} className="rounded-2xl border border-white/10 bg-white/5 p-2 transition hover:bg-white/10">
+            <ArrowLeft className="h-6 w-6 text-slate-200" />
           </button>
-          <h1 className="text-3xl font-bold text-gray-900">Contact Support</h1>
+          <div>
+            <p className="text-xs uppercase tracking-[0.28em] text-violet-300/70">Support</p>
+            <h1 className="font-display text-3xl font-bold tracking-tight text-white">Contact Support</h1>
+          </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-4 mb-8">
+        <div className="mb-8 flex gap-4">
           <button
             onClick={() => setActiveTab('faq')}
-            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-semibold transition-colors ${
-              activeTab === 'faq'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
+            className={`inline-flex items-center gap-2 rounded-2xl px-6 py-3 font-semibold transition ${activeTab === 'faq' ? 'bg-gradient-to-r from-violet-500 to-cyan-500 text-white' : 'border border-white/10 bg-white/5 text-slate-200 hover:bg-white/10'}`}
           >
-            <HelpCircle className="w-5 h-5" />
+            <HelpCircle className="h-5 w-5" />
             <span>FAQ</span>
           </button>
           <button
             onClick={() => setActiveTab('contact')}
-            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-semibold transition-colors ${
-              activeTab === 'contact'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
+            className={`inline-flex items-center gap-2 rounded-2xl px-6 py-3 font-semibold transition ${activeTab === 'contact' ? 'bg-gradient-to-r from-violet-500 to-cyan-500 text-white' : 'border border-white/10 bg-white/5 text-slate-200 hover:bg-white/10'}`}
           >
-            <MessageCircle className="w-5 h-5" />
+            <MessageCircle className="h-5 w-5" />
             <span>Contact Us</span>
           </button>
         </div>
 
-        {/* FAQ Section */}
         {activeTab === 'faq' && (
           <div className="space-y-4">
             {faqItems.map((item, index) => (
-              <details key={index} className="bg-white rounded-lg shadow-md p-6 cursor-pointer">
-                <summary className="font-semibold text-gray-900 flex items-center space-x-3 hover:text-blue-600 transition-colors">
-                  <HelpCircle className="w-5 h-5 flex-shrink-0" />
+              <details key={index} className="dark-card cursor-pointer rounded-[24px] p-6">
+                <summary className="flex items-center gap-3 font-semibold text-white transition hover:text-cyan-200">
+                  <HelpCircle className="h-5 w-5 flex-shrink-0 text-cyan-300" />
                   <span>{item.question}</span>
                 </summary>
-                <p className="mt-4 ml-8 text-gray-600 leading-relaxed">{item.answer}</p>
+                <p className="mt-4 ml-8 leading-relaxed text-slate-400">{item.answer}</p>
               </details>
             ))}
           </div>
         )}
 
-        {/* Contact Form Section */}
         {activeTab === 'contact' && (
-          <div className="bg-white rounded-lg shadow-md p-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-6">Get in Touch</h2>
+          <div className="dark-card rounded-[28px] p-8">
+            <h2 className="mb-6 font-display text-2xl font-semibold text-white">Get in Touch</h2>
 
-            {/* Contact Methods */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="flex flex-col items-center p-6 bg-blue-50 rounded-lg">
-                <Mail className="w-8 h-8 text-blue-600 mb-3" />
-                <h3 className="font-semibold text-gray-900 mb-1">Email</h3>
-                <p className="text-gray-600 text-center text-sm">support@budgetexpense.com</p>
+            <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3">
+              <div className="rounded-[24px] border border-white/10 bg-white/5 p-6 text-center">
+                <Mail className="mx-auto mb-3 h-8 w-8 text-cyan-300" />
+                <h3 className="mb-1 font-semibold text-white">Email</h3>
+                <p className="text-sm text-slate-400">support@budgetexpense.com</p>
               </div>
-              <div className="flex flex-col items-center p-6 bg-green-50 rounded-lg">
-                <Phone className="w-8 h-8 text-green-600 mb-3" />
-                <h3 className="font-semibold text-gray-900 mb-1">Phone</h3>
-                <p className="text-gray-600 text-center text-sm">+1 (555) 123-4567</p>
+              <div className="rounded-[24px] border border-white/10 bg-white/5 p-6 text-center">
+                <Phone className="mx-auto mb-3 h-8 w-8 text-emerald-300" />
+                <h3 className="mb-1 font-semibold text-white">Phone</h3>
+                <p className="text-sm text-slate-400">+1 (555) 123-4567</p>
               </div>
-              <div className="flex flex-col items-center p-6 bg-purple-50 rounded-lg">
-                <MessageCircle className="w-8 h-8 text-purple-600 mb-3" />
-                <h3 className="font-semibold text-gray-900 mb-1">Chat</h3>
-                <p className="text-gray-600 text-center text-sm">Live chat available 9-5 EST</p>
+              <div className="rounded-[24px] border border-white/10 bg-white/5 p-6 text-center">
+                <MessageCircle className="mx-auto mb-3 h-8 w-8 text-violet-300" />
+                <h3 className="mb-1 font-semibold text-white">Chat</h3>
+                <p className="text-sm text-slate-400">Live chat available 9-5 EST</p>
               </div>
             </div>
 
-            {/* Success Message */}
             {submitted && (
-              <div className="mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg flex items-center space-x-3">
-                <AlertCircle className="w-5 h-5" />
-                <span>Thank you for contacting us! We'll get back to you soon.</span>
+              <div className="mb-6 flex items-center gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-4 text-emerald-100">
+                <AlertCircle className="h-5 w-5" />
+                <span>Thank you for contacting us! We’ll get back to you soon.</span>
               </div>
             )}
 
-            {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Your name"
-                  />
+                  <label className="mb-2 block text-sm font-medium text-slate-300">Full Name</label>
+                  <input type="text" name="name" value={formData.name} onChange={handleInputChange} required className="w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-slate-100 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/25" placeholder="Your name" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="your.email@example.com"
-                  />
+                  <label className="mb-2 block text-sm font-medium text-slate-300">Email Address</label>
+                  <input type="email" name="email" value={formData.email} onChange={handleInputChange} required className="w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-slate-100 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/25" placeholder="your.email@example.com" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Issue Type</label>
-                <select
-                  name="type"
-                  value={formData.type}
-                  onChange={handleInputChange}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
+                <label className="mb-2 block text-sm font-medium text-slate-300">Issue Type</label>
+                <select name="type" value={formData.type} onChange={handleInputChange} className="w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-slate-100 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/25">
                   <option value="general">General Inquiry</option>
                   <option value="bug">Bug Report</option>
                   <option value="feature">Feature Request</option>
@@ -210,45 +175,23 @@ export function ContactSupport({ onBack }: SupportProps) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
-                <input
-                  type="text"
-                  name="subject"
-                  value={formData.subject}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Brief subject of your inquiry"
-                />
+                <label className="mb-2 block text-sm font-medium text-slate-300">Subject</label>
+                <input type="text" name="subject" value={formData.subject} onChange={handleInputChange} required className="w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-slate-100 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/25" placeholder="Brief subject of your inquiry" />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
-                <textarea
-                  name="message"
-                  value={formData.message}
-                  onChange={handleInputChange}
-                  required
-                  rows={6}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                  placeholder="Please describe your issue in detail..."
-                />
+                <label className="mb-2 block text-sm font-medium text-slate-300">Message</label>
+                <textarea name="message" value={formData.message} onChange={handleInputChange} required rows={6} className="w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-slate-100 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/25 resize-none" placeholder="Please describe your issue in detail..." />
               </div>
 
-              <button
-                type="submit"
-                className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold flex items-center justify-center space-x-2"
-              >
-                <Send className="w-5 h-5" />
+              <button type="submit" className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-500 to-cyan-500 px-6 py-3 font-semibold text-white shadow-[0_16px_40px_rgba(124,58,237,0.22)] transition hover:from-violet-400 hover:to-cyan-400">
+                <Send className="h-5 w-5" />
                 <span>Send Message</span>
               </button>
             </form>
 
-            {/* Response Time */}
-            <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-700">
-                <span className="font-semibold">Response Time:</span> We typically respond to inquiries within 24-48 hours. Thank you for your patience!
-              </p>
+            <div className="mt-8 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 p-4 text-sm text-cyan-100">
+              <span className="font-semibold">Response Time:</span> We typically respond to inquiries within 24-48 hours. Thank you for your patience!
             </div>
           </div>
         )}

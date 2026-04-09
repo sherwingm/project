@@ -20,14 +20,14 @@ export const DropdownMenuItem: FC<DropdownMenuItemProps> = ({
     <button
       type="button"
       onClick={onClick}
-      className={`w-full flex items-start space-x-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 focus:outline-none ${className}`}
+      className={`w-full flex items-start space-x-3 px-4 py-2 text-left text-sm text-slate-200 hover:bg-white/5 focus:outline-none ${className}`}
     >
       <span className="mt-0.5">
-        <Icon className="h-4 w-4 text-gray-500" />
+        <Icon className="h-4 w-4 text-slate-400" />
       </span>
       <span className="flex flex-col">
-        <span className="font-medium text-gray-900">{title}</span>
-        {subtitle && <span className="text-xs text-gray-500">{subtitle}</span>}
+        <span className="font-medium text-slate-100">{title}</span>
+        {subtitle && <span className="text-xs text-slate-400">{subtitle}</span>}
       </span>
     </button>
   );

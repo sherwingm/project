@@ -65,42 +65,41 @@ export function Header({ currentView, groupName, user, onLogout, onNavigate }: H
   };
 
   return (
-    <header className="relative z-50 bg-white shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-        <div className="flex items-center space-x-4">
+    <header className="sticky top-0 z-50 border-b border-white/8 bg-[#0f0f1a]/85 backdrop-blur-xl shadow-[0_10px_40px_rgba(2,6,23,0.35)]">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+        <div className="flex min-w-0 items-center space-x-3">
           {showBackButton && (
             <button
               type="button"
               onClick={handleBack}
-              className="flex items-center justify-center w-10 h-10 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-slate-300 transition-all hover:bg-white/5 hover:text-white"
               aria-label="Go back"
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
           )}
-          <NewLogo size="md" />
-          <h1 className="text-3xl font-bold text-gradient-primary font-playfair">Budget Expensive Splitter</h1>
+          <NewLogo size="sm" />
         </div>
 
         <nav className="flex items-center space-x-4">
           {user ? (
             <div className="relative" ref={dropdownRef}>
               <button
-                className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-md py-2 px-3"
+                className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-slate-200 shadow-sm transition-all hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               >
-                <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold text-sm">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full border border-violet-400/60 bg-gradient-to-br from-violet-500 to-violet-700 font-semibold text-sm text-white shadow-[0_0_0_3px_rgba(124,58,237,0.15)]">
                   {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
                 </div>
-                <span className="hidden sm:block">{user.name || user.email}</span>
+                <span className="hidden max-w-[12rem] truncate font-sans text-sm font-medium sm:block">{user.name || user.email}</span>
                 <ChevronDown className={`h-5 w-5 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {isDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 z-50">
-                  <div className="px-4 py-2 text-xs text-gray-500">Signed in as</div>
-                  <div className="px-4 py-2 text-sm font-medium text-gray-900 truncate">{user.email}</div>
-                  <div className="border-t border-gray-100 my-1"></div>
+                <div className="absolute right-0 z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-white/8 bg-[#1a1a2e] py-2 shadow-2xl shadow-slate-950/40">
+                  <div className="px-4 py-2 text-xs text-slate-400">Signed in as</div>
+                  <div className="px-4 pb-2 text-sm font-medium truncate text-slate-100">{user.email}</div>
+                  <div className="my-1 border-t border-white/8"></div>
 
                   <DropdownMenuItem
                     icon={User}
@@ -137,20 +136,20 @@ export function Header({ currentView, groupName, user, onLogout, onNavigate }: H
                     onClick={handleSupportClick}
                   />
 
-                  <div className="border-t border-gray-100 my-1"></div>
+                  <div className="my-1 border-t border-white/8"></div>
 
                   <DropdownMenuItem
                     icon={LogOut}
                     title="Log out"
                     subtitle="Sign out of your account"
                     onClick={handleLogout}
-                    className="text-sm text-red-600 hover:bg-red-50"
+                    className="text-sm text-red-300 hover:bg-red-500/10"
                   />
                 </div>
               )}
             </div>
           ) : (
-            <button className="text-indigo-600 hover:text-indigo-700 font-medium">
+            <button className="font-sans font-medium tracking-wide text-violet-300 hover:text-violet-200">
               Sign in
             </button>
           )}

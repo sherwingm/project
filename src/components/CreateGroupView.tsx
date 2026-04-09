@@ -2,13 +2,19 @@ import { useMemo, useState } from 'react';
 import { Plus, Users, X } from 'lucide-react';
 
 interface CreateGroupViewProps {
-  onCreateGroup: (name: string, members: string[]) => Promise<void> | void;
+  onCreateGroup: (
+    name: string,
+    members: string[],
+    options: { autoDelete: boolean; deleteAfter: 'immediately' | '1-day' | '3-days' | '7-days' }
+  ) => Promise<void> | void;
   onCancel: () => void;
 }
 
 export function CreateGroupView({ onCreateGroup, onCancel }: CreateGroupViewProps) {
   const [groupName, setGroupName] = useState('');
   const [memberNames, setMemberNames] = useState<string[]>(['']);
+  const [autoDelete, setAutoDelete] = useState(false);
+  const [deleteAfter, setDeleteAfter] = useState<'immediately' | '1-day' | '3-days' | '7-days'>('immediately');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canSubmit = useMemo(() => {
@@ -34,9 +40,11 @@ export function CreateGroupView({ onCreateGroup, onCancel }: CreateGroupViewProp
     const validMembers = memberNames.map((m) => m.trim()).filter(Boolean);
     setIsSubmitting(true);
     try {
-      await onCreateGroup(groupName.trim(), validMembers);
+      await onCreateGroup(groupName.trim(), validMembers, { autoDelete, deleteAfter });
       setGroupName('');
       setMemberNames(['']);
+      setAutoDelete(false);
+      setDeleteAfter('immediately');
       onCancel();
     } finally {
       setIsSubmitting(false);
@@ -44,122 +52,149 @@ export function CreateGroupView({ onCreateGroup, onCancel }: CreateGroupViewProp
   };
 
   return (
-    <div className="min-h-[calc(100vh-64px)] bg-fixed bg-cover bg-center" style={{ backgroundImage: "url('/images/yy.jpg')" }}>
-      <div className="relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/85 to-purple-600/75" />
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          <div className="flex items-center justify-between text-white">
-            <div>
-              <h2 className="text-3xl sm:text-4xl font-bold">Create Group</h2>
-              <p className="text-white/90 mt-2">Add members and start splitting expenses in seconds.</p>
+    <div className="min-h-screen overflow-y-auto bg-[#0f0f1a] text-slate-100">
+      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,rgba(124,58,237,0.18),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(6,182,212,0.12),transparent_34%)]" />
+      <div className="relative mx-auto max-w-6xl px-4 py-10 pb-16 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between gap-4 rounded-[28px] border border-white/10 bg-white/5 px-5 py-4 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl sm:px-6">
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-violet-300/70">Create group</p>
+            <h2 className="mt-1 font-display text-3xl font-semibold tracking-tight text-white sm:text-4xl">Build the room</h2>
+            <p className="mt-2 max-w-2xl text-sm text-slate-400">Add members and start splitting expenses in a dark premium workspace.</p>
+          </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-violet-400/40 hover:bg-violet-500/10"
+          >
+            <X className="h-4 w-4" />
+            <span>Back</span>
+          </button>
+        </div>
+
+        <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-12">
+          <div className="lg:col-span-5">
+            <div className="dark-card rounded-[28px] p-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-500/15 text-violet-200">
+                  <Users className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="font-display text-lg font-medium tracking-tight text-white">Tip</p>
+                  <p className="text-sm text-slate-400">Use real names so balances stay easy to track.</p>
+                </div>
+              </div>
+              <ul className="mt-6 space-y-3 text-sm text-slate-300">
+                <li className="rounded-2xl border border-white/8 bg-white/5 px-4 py-3">Add at least 1 member</li>
+                <li className="rounded-2xl border border-white/8 bg-white/5 px-4 py-3">You can edit group expenses later</li>
+                <li className="rounded-2xl border border-white/8 bg-white/5 px-4 py-3">Share code can be generated inside the group</li>
+              </ul>
             </div>
-            <button
-              type="button"
-              onClick={onCancel}
-              className="inline-flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 px-4 py-2 transition-colors"
-            >
-              <X className="h-4 w-4" />
-              <span>Back</span>
-            </button>
           </div>
 
-          <div className="mt-10 grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div className="lg:col-span-5">
-              <div className="rounded-2xl bg-white/10 border border-white/20 p-6 text-white backdrop-blur-sm">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-white/15 flex items-center justify-center">
-                    <Users className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">Tip</p>
-                    <p className="text-sm text-white/90">Use real names so balances are easy to track.</p>
-                  </div>
-                </div>
-                <ul className="mt-5 space-y-3 text-sm text-white/90">
-                  <li>- Add at least 1 member</li>
-                  <li>- You can edit group expenses later</li>
-                  <li>- Share code can be generated inside the group</li>
-                </ul>
+          <div className="lg:col-span-7">
+            <div className="dark-card overflow-hidden rounded-[28px]">
+              <div className="border-b border-white/10 px-6 py-5">
+                <h3 className="font-display text-lg font-semibold tracking-tight text-white">Group details</h3>
+                <p className="mt-1 text-sm text-slate-400">Create a group and invite your friends.</p>
               </div>
-            </div>
 
-            <div className="lg:col-span-7">
-              <div className="rounded-2xl bg-white/90 backdrop-blur-sm border border-white/40 shadow-2xl overflow-hidden">
-                <div className="px-6 py-5 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900">Group details</h3>
-                  <p className="text-sm text-gray-600 mt-1">Create a group and invite your friends.</p>
+              <form onSubmit={handleSubmit} className="space-y-6 px-6 py-6">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-300">Group name</label>
+                  <input
+                    type="text"
+                    value={groupName}
+                    onChange={(e) => setGroupName(e.target.value)}
+                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-slate-100 placeholder:text-slate-500 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/25"
+                    placeholder="Trip to Chennai"
+                    required
+                  />
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6">
-                  <div className="mb-5">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Group name</label>
-                    <input
-                      type="text"
-                      value={groupName}
-                      onChange={(e) => setGroupName(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-                      placeholder="Trip to Chennai"
-                      required
-                    />
-                  </div>
-
-                  <div className="mb-6">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="block text-sm font-medium text-gray-700">Members</label>
-                      <button
-                        type="button"
-                        onClick={addMemberField}
-                        className="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-700 text-sm font-medium"
-                      >
-                        <Plus className="h-4 w-4" />
-                        Add member
-                      </button>
-                    </div>
-
-                    <div className="space-y-3">
-                      {memberNames.map((name, index) => (
-                        <div key={index} className="flex items-center gap-3">
-                          <input
-                            type="text"
-                            value={name}
-                            onChange={(e) => updateMemberName(index, e.target.value)}
-                            className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-                            placeholder={`Member ${index + 1} name`}
-                          />
-                          {memberNames.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => removeMemberField(index)}
-                              className="h-11 w-11 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-600 flex items-center justify-center"
-                              aria-label="Remove member"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3">
+                <div>
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <label className="block text-sm font-medium text-slate-300">Members</label>
                     <button
                       type="button"
-                      onClick={onCancel}
-                      className="flex-1 px-4 py-3 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50"
-                      disabled={isSubmitting}
+                      onClick={addMemberField}
+                      className="inline-flex items-center gap-2 rounded-full border border-violet-400/20 bg-violet-500/10 px-3 py-2 text-sm font-medium text-violet-200 transition hover:bg-violet-500/15"
                     >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="flex-1 px-4 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed"
-                      disabled={!canSubmit}
-                    >
-                      {isSubmitting ? 'Creating…' : 'Create group'}
+                      <Plus className="h-4 w-4" />
+                      Add member
                     </button>
                   </div>
-                </form>
-              </div>
+
+                  <div className="space-y-3">
+                    {memberNames.map((name, index) => (
+                      <div key={index} className="flex items-center gap-3">
+                        <input
+                          type="text"
+                          value={name}
+                          onChange={(e) => updateMemberName(index, e.target.value)}
+                          className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-slate-100 placeholder:text-slate-500 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/25"
+                          placeholder={`Member ${index + 1} name`}
+                        />
+                        {memberNames.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeMemberField(index)}
+                            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-slate-300 transition hover:border-rose-400/40 hover:bg-rose-500/10 hover:text-rose-200"
+                            aria-label="Remove member"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-[24px] border border-white/10 bg-white/5 p-4">
+                  <label className="flex items-center gap-3 text-sm font-medium text-slate-200">
+                    <input
+                      type="checkbox"
+                      checked={autoDelete}
+                      onChange={(e) => setAutoDelete(e.target.checked)}
+                      className="h-4 w-4 rounded border-white/20 bg-slate-900 text-violet-500 focus:ring-violet-500/30"
+                    />
+                    Auto-delete group when all expenses are settled
+                  </label>
+
+                  {autoDelete && (
+                    <div className="mt-4">
+                      <label className="mb-2 block text-sm text-slate-300">Delete after</label>
+                      <select
+                        value={deleteAfter}
+                        onChange={(e) => setDeleteAfter(e.target.value as 'immediately' | '1-day' | '3-days' | '7-days')}
+                        className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-slate-100 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/25"
+                      >
+                        <option value="immediately">Immediately</option>
+                        <option value="1-day">1 day</option>
+                        <option value="3-days">3 days</option>
+                        <option value="7-days">7 days</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={onCancel}
+                    className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-medium text-slate-200 transition hover:border-white/20 hover:bg-white/10"
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 rounded-2xl bg-gradient-to-r from-violet-500 to-cyan-500 px-4 py-3 font-semibold text-white shadow-[0_16px_40px_rgba(124,58,237,0.22)] transition hover:from-violet-400 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={!canSubmit}
+                  >
+                    {isSubmitting ? 'Creating…' : 'Create group'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

@@ -1,39 +1,63 @@
 import React, { useState } from 'react';
-import { Users, ArrowLeft, PlusCircle, UserPlus } from 'lucide-react';
+import { Users, Plus, UserPlus, ArrowRight, Copy, Share2, Trash2 } from 'lucide-react';
 import { Group } from '../types';
 import GroupCard from './GroupCard';
+import { calculateBalances } from '../utils/calculations';
+import { simplifyDebts } from '../utils/simplifyDebts';
+import { buildAppUPILink, getBudgetSplitSettlementNote, isMobileDevice } from '../utils/upi';
 
 interface GroupListProps {
   groups: Group[];
   onSelectGroup: (group: Group) => void;
-  onCreateGroup: (name: string, members: string[]) => void;
+  onCreateGroup: (
+    name: string,
+    members: string[],
+    options: { autoDelete: boolean; deleteAfter: 'immediately' | '1-day' | '3-days' | '7-days' }
+  ) => void;
   onDeleteGroup: (groupId: string) => void;
   onJoinGroup: (shareCode: string) => void;
   onOpenCreateGroup: () => void;
   pendingJoinCode: string | null;
   onAddExpense: (group: Group) => void;
+  currentUserId?: string;
+  currentUserName?: string;
+  onRecordSettlement?: (
+    groupId: string,
+    settlement: { from: string; fromId?: string; to: string; toId?: string; amount: number }
+  ) => Promise<void> | void;
 }
 
-export function GroupList({ groups, onSelectGroup, onCreateGroup, onDeleteGroup, onJoinGroup, onOpenCreateGroup: _onOpenCreateGroup, pendingJoinCode: _pendingJoinCode, onAddExpense }: GroupListProps) {
+export function GroupList({ groups, onSelectGroup, onCreateGroup, onDeleteGroup, onJoinGroup, onOpenCreateGroup: _onOpenCreateGroup, pendingJoinCode: _pendingJoinCode, onAddExpense, currentUserId, currentUserName, onRecordSettlement }: GroupListProps) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showJoinForm, setShowJoinForm] = useState(false);
   const [showGroupSelection, setShowGroupSelection] = useState(false);
-
-  const handleBack = () => {
-    // Navigate back to previous page - can be customized based on needs
-    window.history.back();
-  };
   const [groupName, setGroupName] = useState('');
   const [memberNames, setMemberNames] = useState(['']);
   const [shareCode, setShareCode] = useState('');
+  const [autoDelete, setAutoDelete] = useState(false);
+  const [deleteAfter, setDeleteAfter] = useState<'immediately' | '1-day' | '3-days' | '7-days'>('immediately');
+  const [payNowState, setPayNowState] = useState<{
+    group: Group;
+    userName: string;
+    userId?: string;
+    settlements: Array<{ from: string; to: string; amount: number; toId?: string }>;
+    selected?: { from: string; to: string; amount: number; toId?: string };
+  } | null>(null);
+  const [isRecordingSettlement, setIsRecordingSettlement] = useState(false);
+
+  const handleBack = () => {
+    window.history.back();
+  };
 
   const handleCreateGroup = (e: React.FormEvent) => {
     e.preventDefault();
-    if (groupName.trim() && memberNames.some(name => name.trim())) {
-      const validMembers = memberNames.filter(name => name.trim());
-      onCreateGroup(groupName.trim(), validMembers);
+    if (groupName.trim() && memberNames.some((name) => name.trim())) {
+      const validMembers = memberNames.filter((name) => name.trim());
+      onCreateGroup(groupName.trim(), validMembers, { autoDelete, deleteAfter });
       setGroupName('');
       setMemberNames(['']);
+      setAutoDelete(false);
+      setDeleteAfter('immediately');
       setShowCreateForm(false);
     }
   };
@@ -47,274 +71,454 @@ export function GroupList({ groups, onSelectGroup, onCreateGroup, onDeleteGroup,
     }
   };
 
-  const addMemberField = () => {
-    setMemberNames([...memberNames, '']);
-  };
+  const addMemberField = () => setMemberNames((prev) => [...prev, '']);
 
   const updateMemberName = (index: number, name: string) => {
-    const updated = [...memberNames];
-    updated[index] = name;
-    setMemberNames(updated);
+    setMemberNames((prev) => prev.map((memberName, memberIndex) => (memberIndex === index ? name : memberName)));
   };
 
   const removeMemberField = (index: number) => {
-    if (memberNames.length > 1) {
-      setMemberNames(memberNames.filter((_, i) => i !== index));
+    setMemberNames((prev) => (prev.length > 1 ? prev.filter((_, memberIndex) => memberIndex !== index) : prev));
+  };
+
+  const getUserPaySummary = (group: Group) => {
+    const userMember = group.members.find((member) => member.id === currentUserId)
+      || group.members.find((member) => member.name === currentUserName);
+
+    if (!userMember) {
+      return { userMember: null, owes: [] as Array<{ from: string; to: string; amount: number; toId?: string }> };
+    }
+
+    const balances = calculateBalances(group.expenses, group.members, group.settlements || []);
+    const byName: Record<string, number> = {};
+
+    balances.forEach((balance) => {
+      const member = group.members.find((m) => m.id === balance.personId);
+      if (member) {
+        byName[member.name] = balance.balance;
+      }
+    });
+
+    const owes = simplifyDebts(byName)
+      .filter((settlement) => settlement.from === userMember.name)
+      .map((settlement) => ({
+        ...settlement,
+        toId: group.members.find((member) => member.name === settlement.to)?.id,
+      }));
+
+    return { userMember, owes };
+  };
+
+  const openPayNow = (group: Group) => {
+    const { userMember, owes } = getUserPaySummary(group);
+    if (!userMember || owes.length === 0) return;
+
+    setPayNowState({
+      group,
+      userName: userMember.name,
+      userId: userMember.id,
+      settlements: owes,
+      selected: owes[0],
+    });
+  };
+
+  const openUPIPaymentLink = (app: 'gpay' | 'phonepe' | 'paytm', amount: number, name: string, upiId?: string, note?: string) => {
+    if (!isMobileDevice()) {
+      alert('UPI payments only work on mobile devices');
+      return;
+    }
+
+    if (!amount || amount <= 0) {
+      return;
+    }
+
+    const url = buildAppUPILink(app, amount, name, upiId, note || getBudgetSplitSettlementNote(name));
+    if (!url) return;
+
+    window.location.href = url;
+  };
+
+  const copyPaymentRequest = async () => {
+    if (!payNowState?.selected) return;
+    const message = `Hey ${payNowState.selected.to}, please send ₹${payNowState.selected.amount.toFixed(2)} via UPI for expense split`;
+    await navigator.clipboard.writeText(message);
+  };
+
+  const markPayNowPaid = async () => {
+    if (!payNowState?.selected || !onRecordSettlement) return;
+
+    setIsRecordingSettlement(true);
+    try {
+      await onRecordSettlement(payNowState.group.id, {
+        from: payNowState.userName,
+        fromId: payNowState.userId,
+        to: payNowState.selected.to,
+        toId: payNowState.selected.toId,
+        amount: payNowState.selected.amount,
+      });
+      setPayNowState(null);
+    } finally {
+      setIsRecordingSettlement(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-fixed bg-cover bg-center" style={{ backgroundImage: "url('https://source.unsplash.com/1600x900/?map,travel')" }}>
-      {/* Hero Banner with overlay */}
-      <div className="relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-teal-500 opacity-80"></div>
-        <div className="relative text-center text-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-            <h1 className="text-4xl sm:text-5xl font-bold mb-4">Split Expenses Smartly</h1>
-            <p className="text-xl sm:text-2xl max-w-2xl mx-auto">
-              Track, Share, and Settle Costs Together
-            </p>
+    <>
+    <div className="min-h-screen bg-transparent px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Dashboard</p>
+            <h2 className="font-display text-3xl font-bold tracking-tight text-slate-100 sm:text-[32px]">Your Groups</h2>
+            <p className="max-w-2xl text-sm text-slate-400 sm:text-base">Track, split, and settle — effortlessly</p>
+          </div>
+          <button
+            onClick={_onOpenCreateGroup}
+            className="inline-flex items-center gap-2 self-start rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 px-5 py-3 font-sans text-sm font-semibold text-white shadow-lg shadow-violet-500/20 transition-all duration-200 hover:scale-[1.02] hover:shadow-violet-500/30"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Create Group</span>
+          </button>
+        </div>
+
+        <div className="mb-6 flex flex-wrap gap-3 rounded-2xl border border-white/6 bg-white/5 p-3 backdrop-blur-md">
+          <div className="flex items-center gap-2 rounded-xl border border-white/6 bg-white/5 px-4 py-3 text-sm text-slate-200">
+            <span className="text-violet-300">✦</span>
+            <span>{groups.length} Groups</span>
+          </div>
+          <div className="flex items-center gap-2 rounded-xl border border-white/6 bg-white/5 px-4 py-3 text-sm text-slate-200">
+            <span className="text-cyan-300">₹</span>
+            <span>{new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(groups.reduce((sum, group) => sum + (group.expenses || []).reduce((groupSum, expense) => groupSum + expense.amount, 0), 0))} Total Tracked</span>
+          </div>
+          <div className="flex items-center gap-2 rounded-xl border border-white/6 bg-white/5 px-4 py-3 text-sm text-slate-200">
+            <span className="text-emerald-300">👥</span>
+            <span>{groups.reduce((sum, group) => sum + group.members.length, 0)} Members</span>
           </div>
         </div>
-      </div>
 
-      {/* Action Buttons */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-12">
-        <div className="flex justify-center space-x-4 mb-8">
+        <div className="mb-6 flex flex-wrap gap-3">
           <button
             onClick={() => {
               console.log('Add Expense clicked, groups:', groups);
               if (groups.length > 0) {
                 setShowGroupSelection(true);
               } else {
-                console.log('No groups available, opening create group');
                 _onOpenCreateGroup();
               }
             }}
-            className="flex items-center space-x-2 bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-xl shadow-2xl border-4 border-green-300 transition-all font-bold text-lg transform hover:scale-105"
+            className="inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 transition-all hover:bg-white/10"
           >
-            <PlusCircle className="w-6 h-6" />
+            <Plus className="h-4 w-4" />
             <span>Add Expense</span>
           </button>
           <button
             onClick={() => setShowJoinForm(true)}
-            className="flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-xl shadow-2xl border-4 border-blue-300 transition-all font-bold text-lg transform hover:scale-105"
+            className="inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 transition-all hover:bg-white/10"
           >
-            <UserPlus className="w-6 h-6" />
+            <UserPlus className="h-4 w-4" />
             <span>Join Group</span>
           </button>
-          <button
-            onClick={_onOpenCreateGroup}
-            className="flex items-center space-x-2 bg-orange-500 hover:bg-orange-600 text-white px-8 py-4 rounded-xl shadow-2xl border-4 border-orange-300 transition-all font-bold text-lg transform hover:scale-105"
-          >
-            <Users className="w-6 h-6" />
-            <span>Create Group</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={handleBack}
-                className="flex items-center justify-center w-10 h-10 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
-                title="Go back"
-              >
-                <ArrowLeft className="w-6 h-6" />
-              </button>
-              <div>
-                <h2 className="text-3xl font-bold text-gradient-secondary font-dancing">Your Groups</h2>
-                <p className="text-gray-600 mt-2">Manage your expense groups and track shared costs</p>
-              </div>
-            </div>
-          </div>
         </div>
 
-      {/* Create Group Form */}
-      {showCreateForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">Create New Group</h3>
-            <form onSubmit={handleCreateGroup}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Group Name
-                </label>
-                <input
-                  type="text"
-                  value={groupName}
-                  onChange={(e) => setGroupName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Trip to Paris"
-                  required
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Members
-                </label>
-                {memberNames.map((name, index) => (
-                  <div key={index} className="flex space-x-2 mb-2">
+        {showCreateForm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-md">
+            <div className="w-full max-w-md rounded-3xl border border-white/8 bg-[#1a1a2e] p-6 shadow-2xl shadow-slate-950/50">
+              <h3 className="font-display mb-4 text-lg font-semibold tracking-tight text-slate-100">Create New Group</h3>
+              <form onSubmit={handleCreateGroup}>
+                  <div className="mb-4">
+                    <label className="font-sans mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Group Name</label>
                     <input
                       type="text"
-                      value={name}
-                      onChange={(e) => updateMemberName(index, e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Member name"
+                      value={groupName}
+                      onChange={(e) => setGroupName(e.target.value)}
+                      className="font-sans w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+                      placeholder="Trip to Paris"
+                      required
                     />
-                    {memberNames.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeMemberField(index)}
-                        className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg"
-                      >
-                        ×
-                      </button>
+                  </div>
+                  <div className="mb-4">
+                    <label className="font-sans mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Members</label>
+                    {memberNames.map((name, index) => (
+                      <div key={index} className="mb-2 flex space-x-2">
+                        <input
+                          type="text"
+                          value={name}
+                          onChange={(e) => updateMemberName(index, e.target.value)}
+                          className="font-sans flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-3 font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+                          placeholder="Member name"
+                        />
+                        {memberNames.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeMemberField(index)}
+                            className="rounded-lg border border-white/8 px-3 py-2 text-red-300 transition-colors hover:bg-red-500/10"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <button type="button" onClick={addMemberField} className="font-sans text-sm font-medium tracking-wide text-cyan-300 hover:text-cyan-200">
+                      + Add member
+                    </button>
+                  </div>
+                  <div className="mb-4 rounded-xl border border-white/8 bg-white/5 p-4">
+                    <label className="font-sans flex items-center gap-3 text-sm font-normal text-slate-200">
+                      <input
+                        type="checkbox"
+                        checked={autoDelete}
+                        onChange={(e) => setAutoDelete(e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      Auto-delete group when all expenses are settled
+                    </label>
+                    {autoDelete && (
+                      <div className="mt-4">
+                        <label className="font-sans mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Delete after</label>
+                        <select
+                          value={deleteAfter}
+                          onChange={(e) => setDeleteAfter(e.target.value as 'immediately' | '1-day' | '3-days' | '7-days')}
+                          className="font-sans w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 font-normal text-slate-100 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+                        >
+                          <option value="immediately">Immediately</option>
+                          <option value="1-day">1 day</option>
+                          <option value="3-days">3 days</option>
+                          <option value="7-days">7 days</option>
+                        </select>
+                      </div>
                     )}
                   </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={addMemberField}
-                  className="text-blue-600 hover:text-blue-700 text-sm"
-                >
-                  + Add member
-                </button>
+                  <div className="flex space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateForm(false)}
+                      className="font-sans flex-1 rounded-xl border border-white/10 px-4 py-3 font-medium tracking-wide text-slate-400 transition-colors hover:bg-white/5"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="font-sans flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 px-4 py-3 font-medium tracking-wide text-white shadow-lg shadow-violet-500/20 hover:scale-[1.01]"
+                    >
+                      Create Group
+                    </button>
+                  </div>
+                </form>
               </div>
-              <div className="flex space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateForm(false)}
-                  className="flex-1 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  Create Group
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Join Group Form */}
-      {showJoinForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">Join Group</h3>
-            <form onSubmit={handleJoinGroup}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Share Code
-                </label>
-                <input
-                  type="text"
-                  value={shareCode}
-                  onChange={(e) => setShareCode(e.target.value.toUpperCase())}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
-                  placeholder="ABC123"
-                  maxLength={6}
-                  required
-                />
-              </div>
-              <div className="flex space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setShowJoinForm(false)}
-                  className="flex-1 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  Join Group
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Groups Grid */}
-      <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-lg p-6">
-      {groups.length === 0 ? (
-        <div className="text-center py-12">
-          <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No groups yet</h3>
-          <p className="text-gray-600 mb-6">Create your first group to start splitting expenses</p>
-          <button
-            onClick={_onOpenCreateGroup}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Create Your First Group
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {groups.map((group) => (
-            <GroupCard
-              key={group.id}
-              group={{
-                id: group.id,
-                name: group.name,
-                location: group.name, // Use group name as location for display
-                members: group.members.length,
-                date: new Date(group.createdAt).toLocaleDateString(),
-                totalExpenses: group.expenses.reduce((sum, expense) => sum + expense.amount, 0),
-                currency: '₹'
-              }}
-              onViewDetails={() => onSelectGroup(group)}
-              onDelete={onDeleteGroup}
-              onAddExpense={() => {
-                console.log('GroupCard Add Expense clicked for group:', group);
-                onAddExpense(group);
-              }}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Group Selection Modal for Add Expense */}
-      {showGroupSelection && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">Select a Group</h3>
-            <p className="text-gray-600 mb-4">Choose which group to add the expense to:</p>
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {groups.map((group) => (
-                <button
-                  key={group.id}
-                  onClick={() => {
-                    onAddExpense(group);
-                    setShowGroupSelection(false);
-                  }}
-                  className="w-full text-left p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <div className="font-medium">{group.name}</div>
-                  <div className="text-sm text-gray-600">{group.members.length} members</div>
-                </button>
-              ))}
             </div>
-            <button
-              onClick={() => setShowGroupSelection(false)}
-              className="mt-4 w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-            >
-              Cancel
-            </button>
+          )}
+
+          {showJoinForm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-md">
+              <div className="w-full max-w-md rounded-3xl border border-white/8 bg-[#1a1a2e] p-6 shadow-2xl shadow-slate-950/50">
+                <h3 className="font-display mb-4 text-lg font-semibold tracking-tight text-slate-100">Join Group</h3>
+                <form onSubmit={handleJoinGroup}>
+                  <div className="mb-4">
+                    <label className="font-sans mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Share Code</label>
+                    <input
+                      type="text"
+                      value={shareCode}
+                      onChange={(e) => setShareCode(e.target.value.toUpperCase())}
+                      className="font-sans w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 font-normal uppercase text-slate-100 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+                      placeholder="ABC123"
+                      maxLength={6}
+                      required
+                    />
+                  </div>
+                  <div className="flex space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowJoinForm(false)}
+                      className="font-sans flex-1 rounded-xl border border-white/10 px-4 py-3 font-medium tracking-wide text-slate-400 transition-colors hover:bg-white/5"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="font-sans flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 px-4 py-3 font-medium tracking-wide text-white shadow-lg shadow-violet-500/20 hover:scale-[1.01]"
+                    >
+                      Join Group
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-6">
+            {groups.length === 0 ? (
+              <div className="mx-auto max-w-2xl rounded-3xl border border-white/8 bg-[#1a1a2e] p-10 text-center shadow-[0_24px_80px_rgba(2,6,23,0.4)]">
+                <div className="mb-4 text-7xl" aria-hidden="true">🧳</div>
+                <h3 className="font-display mb-2 text-2xl font-semibold text-slate-100">No trips yet</h3>
+                <p className="mb-6 text-slate-400">Create your first group and start splitting!</p>
+                <button
+                  onClick={_onOpenCreateGroup}
+                  className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 px-6 py-3 font-sans font-medium text-white shadow-lg shadow-violet-500/20 transition-all duration-200 hover:scale-[1.02]"
+                >
+                  <span>Create your first group</span>
+                  <span aria-hidden="true">→</span>
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+                {groups.map((group, index) => (
+                  (() => {
+                    const { userMember, owes } = getUserPaySummary(group);
+                    const showPayNow = owes.length > 0;
+                    const showSettledBadge = Boolean(userMember) && !showPayNow;
+
+                    return (
+                  <GroupCard
+                    key={group.id}
+                    group={{
+                      id: group.id,
+                      name: group.name,
+                      location: group.name,
+                      members: group.members.length,
+                      date: new Date(group.createdAt).toLocaleDateString(),
+                      totalExpenses: (group.expenses || []).reduce((sum, expense) => sum + expense.amount, 0),
+                      shareToken: group.shareToken,
+                      variantIndex: index,
+                      expenses: (group.expenses || []).map((expense) => ({
+                        id: expense.id,
+                        name: expense.name,
+                        amount: expense.amount,
+                      })),
+                      currency: '₹'
+                    }}
+                    onViewDetails={() => onSelectGroup(group)}
+                    onDelete={onDeleteGroup}
+                    onAddExpense={() => {
+                      console.log('GroupCard Add Expense clicked for group:', group);
+                      onAddExpense(group);
+                    }}
+                    showPayNow={showPayNow}
+                    showSettledBadge={showSettledBadge}
+                    onPayNow={() => openPayNow(group)}
+                  />
+                    );
+                  })()
+                ))}
+              </div>
+            )}
           </div>
+
+          {showGroupSelection && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-md">
+              <div className="mx-4 w-full max-w-md rounded-3xl border border-white/8 bg-[#1a1a2e] p-6 shadow-2xl shadow-slate-950/50">
+                <h3 className="font-display mb-4 text-lg font-semibold tracking-tight text-slate-100">Select a Group</h3>
+                <p className="font-sans mb-4 text-slate-400">Choose which group to add the expense to:</p>
+                <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
+                  {groups.map((group) => (
+                    <button
+                      key={group.id}
+                      onClick={() => {
+                        onAddExpense(group);
+                        setShowGroupSelection(false);
+                      }}
+                      className="font-sans w-full rounded-xl border border-white/8 bg-white/5 p-3 text-left font-normal text-slate-200 transition-colors hover:bg-white/10"
+                    >
+                      <div className="font-display font-medium tracking-normal text-slate-100">{group.name}</div>
+                      <div className="font-sans text-sm text-slate-400">{group.members.length} members</div>
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setShowGroupSelection(false)}
+                  className="font-sans mt-4 w-full rounded-xl border border-white/10 px-4 py-3 font-medium tracking-wide text-slate-400 transition-colors hover:bg-white/5"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {payNowState && (
+            <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+              <div className="w-full rounded-t-[28px] border border-white/10 bg-[#1a1a2e] p-6 shadow-2xl shadow-slate-950/50 sm:max-w-lg sm:rounded-[28px]">
+                <h3 className="font-display text-xl font-semibold text-white">Pay Now</h3>
+                <p className="mt-1 text-sm text-slate-400">{payNowState.group.name}</p>
+
+                <div className="mt-4 space-y-2">
+                  {payNowState.settlements.map((settlement, idx) => (
+                    <button
+                      key={`${settlement.to}-${idx}`}
+                      type="button"
+                      onClick={() => setPayNowState((prev) => prev ? { ...prev, selected: settlement } : prev)}
+                      className={`w-full rounded-xl border px-4 py-3 text-left transition ${payNowState.selected?.to === settlement.to && payNowState.selected?.amount === settlement.amount ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-100' : 'border-white/10 bg-white/5 text-slate-200 hover:bg-white/10'}`}
+                    >
+                      Pay ₹{settlement.amount.toFixed(2)} to {settlement.to}
+                    </button>
+                  ))}
+                </div>
+
+                {payNowState.selected && (
+                  <div className="mt-4 space-y-3 rounded-2xl border border-violet-400/20 bg-violet-500/10 p-4">
+                    {(() => {
+                      const creditor = payNowState.group.members.find((member) => member.name === payNowState.selected?.to);
+                      const note = getBudgetSplitSettlementNote(payNowState.group.name);
+
+                      return creditor?.upiId ? (
+                        <button
+                          type="button"
+                          onClick={() => openUPIPaymentLink('gpay', payNowState.selected!.amount, creditor.name, creditor.upiId, note)}
+                          className="w-full rounded-xl border border-emerald-400/30 bg-gradient-to-r from-emerald-500/25 to-cyan-500/25 px-4 py-2 text-left text-sm font-semibold text-emerald-100"
+                        >
+                          Pay via UPI
+                        </button>
+                      ) : null;
+                    })()}
+                    <button
+                      type="button"
+                      onClick={() => openUPIPaymentLink('gpay', payNowState.selected!.amount, payNowState.selected!.to, undefined, getBudgetSplitSettlementNote(payNowState.group.name))}
+                      className="w-full rounded-xl bg-[#1a73e8] px-4 py-2 text-left text-sm font-semibold text-white"
+                    >
+                      Open GPay
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openUPIPaymentLink('phonepe', payNowState.selected!.amount, payNowState.selected!.to, undefined, getBudgetSplitSettlementNote(payNowState.group.name))}
+                      className="w-full rounded-xl bg-[#5f259f] px-4 py-2 text-left text-sm font-semibold text-white"
+                    >
+                      Open PhonePe
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openUPIPaymentLink('paytm', payNowState.selected!.amount, payNowState.selected!.to, undefined, getBudgetSplitSettlementNote(payNowState.group.name))}
+                      className="w-full rounded-xl bg-[#002970] px-4 py-2 text-left text-sm font-semibold text-white"
+                    >
+                      Open Paytm
+                    </button>
+                    <button
+                      type="button"
+                      onClick={copyPaymentRequest}
+                      className="w-full rounded-xl border border-white/15 bg-white/10 px-4 py-2 text-left text-sm font-medium text-slate-100"
+                    >
+                      Copy request
+                    </button>
+                    <button
+                      type="button"
+                      onClick={markPayNowPaid}
+                      disabled={isRecordingSettlement}
+                      className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isRecordingSettlement ? 'Recording…' : 'Mark as Paid ✓'}
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setPayNowState(null)}
+                  className="mt-4 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2 font-medium text-slate-200 transition hover:bg-white/10"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      )}
       </div>
-      </div>
-    </div>
+    </>
   );
 }

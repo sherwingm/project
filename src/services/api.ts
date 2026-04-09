@@ -6,6 +6,13 @@ export interface User {
   name: string;
   email?: string;
   phone?: string;
+  upiId?: string;
+}
+
+export interface UserLookupResponse {
+  id?: string;
+  name?: string;
+  upiId?: string;
 }
 
 export interface LoginResponse {
@@ -19,6 +26,7 @@ export interface GroupMember {
   name: string;
   email?: string;
   phone?: string;
+  upiId?: string;
   color: string;
 }
 
@@ -40,13 +48,44 @@ export interface Group {
   createdBy: string;
   members: GroupMember[];
   expenses: ExpenseItem[];
+  settlements?: Array<{
+    from: string;
+    fromId?: string;
+    to: string;
+    toId?: string;
+    amount: number;
+    settledAt: string;
+  }>;
   shareCode: string;
+  shareToken?: string;
   createdAt: string;
+  autoDelete?: boolean;
+  deleteAfter?: 'immediately' | '1-day' | '3-days' | '7-days';
+  deleteScheduledAt?: string;
+}
+
+interface CreateGroupOptions {
+  autoDelete?: boolean;
+  deleteAfter?: 'immediately' | '1-day' | '3-days' | '7-days';
 }
 
 // API Service
 class ApiService {
   private token: string | null = null;
+
+  private normalizeGroup(group: any): Group {
+    const expenses = Array.isArray(group.expenses) ? group.expenses : [];
+    const members = Array.isArray(group.members) ? group.members : [];
+    const settlements = Array.isArray(group.settlements) ? group.settlements : [];
+
+    return {
+      ...group,
+      id: group.id || group._id,
+      expenses,
+      members,
+      settlements,
+    };
+  }
 
   constructor() {
     // Load token from localStorage on initialization
@@ -70,9 +109,9 @@ class ApiService {
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json().catch(() => null);
       console.error('API Error:', error);
-      throw new Error(error.error || 'Request failed');
+      throw new Error(error?.error || response.statusText || 'Request failed');
     }
 
     return response.json();
@@ -111,20 +150,30 @@ class ApiService {
 
   // Group methods
   async getGroups(): Promise<Group[]> {
-    return this.request('/groups');
+    const groups = await this.request('/groups');
+    return Array.isArray(groups) ? groups.map((g) => this.normalizeGroup(g)) : [];
   }
 
-  async createGroup(name: string, members: string[]): Promise<Group> {
+  async createGroup(name: string, members: string[], options?: CreateGroupOptions): Promise<Group> {
     const group = await this.request('/groups', {
       method: 'POST',
-      body: JSON.stringify({ name, members }),
+      body: JSON.stringify({
+        name,
+        members,
+        autoDelete: options?.autoDelete ?? false,
+        deleteAfter: options?.deleteAfter ?? 'immediately',
+      }),
     });
-    
-    // Convert _id to id for frontend compatibility
-    return {
-      ...group,
-      id: group._id
-    };
+
+    return this.normalizeGroup(group);
+  }
+
+  async generateShareToken(groupId: string): Promise<string> {
+    const response = await this.request(`/groups/${groupId}/generate-share-token`, {
+      method: 'POST',
+    });
+
+    return response.shareToken;
   }
 
   async joinGroup(shareCode: string): Promise<Group> {
@@ -132,17 +181,17 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ shareCode }),
     });
-    
-    return {
-      ...group,
-      id: group._id
-    };
+
+    return this.normalizeGroup(group);
   }
 
   async addExpense(groupId: string, expense: Omit<ExpenseItem, 'id' | 'date'>): Promise<ExpenseItem> {
     return this.request(`/groups/${groupId}/expenses`, {
       method: 'POST',
-      body: JSON.stringify(expense),
+      body: JSON.stringify({
+        groupId,
+        ...expense,
+      }),
     });
   }
 
@@ -161,6 +210,47 @@ class ApiService {
   getCurrentUser(): User | null {
     const userData = localStorage.getItem('currentUser');
     return userData ? JSON.parse(userData) : null;
+  }
+
+  async updateUserProfile(userId: string, name: string, upiId: string): Promise<User> {
+    const response = await this.request(`/users/${userId}/profile`, {
+      method: 'PUT',
+      body: JSON.stringify({ name, upiId }),
+    });
+
+    return response.user;
+  }
+
+  async getUserProfile(userId: string): Promise<User> {
+    const response = await this.request(`/users/${userId}/profile`);
+    return response.user;
+  }
+
+  async getUserByName(name: string): Promise<UserLookupResponse> {
+    if (!name.trim()) return {};
+
+    return this.request(`/users/by-name/${encodeURIComponent(name.trim())}`);
+  }
+
+  async updateUserUpiId(userId: string, upiId: string): Promise<User> {
+    const response = await this.request(`/users/${userId}/upi`, {
+      method: 'PUT',
+      body: JSON.stringify({ upiId }),
+    });
+
+    return response.user;
+  }
+
+  async recordSettlement(
+    groupId: string,
+    settlementData: { from: string; fromId?: string; to: string; toId?: string; amount: number }
+  ) {
+    const response = await this.request(`/groups/${groupId}/settlements`, {
+      method: 'POST',
+      body: JSON.stringify(settlementData),
+    });
+
+    return this.normalizeGroup(response);
   }
 
   // Wallet methods

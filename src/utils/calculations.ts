@@ -1,6 +1,10 @@
-import { ExpenseItem, Person, Balance, Settlement } from '../types';
+import { ExpenseItem, Person, Balance, Settlement, RecordedSettlement } from '../types';
 
-export function calculateBalances(expenses: ExpenseItem[], members: Person[]): Balance[] {
+export function calculateBalances(
+  expenses: ExpenseItem[],
+  members: Person[],
+  settlements: RecordedSettlement[] = []
+): Balance[] {
   const balances: { [personId: string]: number } = {};
   
   // Initialize balances
@@ -18,6 +22,19 @@ export function calculateBalances(expenses: ExpenseItem[], members: Person[]): B
     expense.splitBetween.forEach(personId => {
       balances[personId] -= splitAmount;
     });
+  });
+
+  settlements.forEach((settlement) => {
+    const fromId = settlement.fromId || settlement.from;
+    const toId = settlement.toId || settlement.to;
+
+    if (balances[fromId] !== undefined) {
+      balances[fromId] += settlement.amount;
+    }
+
+    if (balances[toId] !== undefined) {
+      balances[toId] -= settlement.amount;
+    }
   });
 
   return members.map(member => ({

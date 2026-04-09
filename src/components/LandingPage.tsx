@@ -128,7 +128,7 @@ export function LandingPage({ onNavigate = () => {} }: LandingPageProps) {
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-gray-500">Total</p>
-                      <p className="font-bold text-lg text-gray-900">$486.50</p>
+                      <p className="font-bold text-lg text-gray-900">₹486.50</p>
                     </div>
                   </div>
 
@@ -144,7 +144,7 @@ export function LandingPage({ onNavigate = () => {} }: LandingPageProps) {
                           <p className="text-sm text-gray-500">Paid by John</p>
                         </div>
                       </div>
-                      <p className="font-semibold text-gray-900">$85.00</p>
+                      <p className="font-semibold text-gray-900">₹85.00</p>
                     </div>
 
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -157,7 +157,7 @@ export function LandingPage({ onNavigate = () => {} }: LandingPageProps) {
                           <p className="text-sm text-gray-500">Paid by Sarah</p>
                         </div>
                       </div>
-                      <p className="font-semibold text-gray-900">$240.00</p>
+                      <p className="font-semibold text-gray-900">₹240.00</p>
                     </div>
 
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -170,7 +170,7 @@ export function LandingPage({ onNavigate = () => {} }: LandingPageProps) {
                           <p className="text-sm text-gray-500">Paid by Mike</p>
                         </div>
                       </div>
-                      <p className="font-semibold text-gray-900">$45.50</p>
+                      <p className="font-semibold text-gray-900">₹45.50</p>
                     </div>
                   </div>
 
