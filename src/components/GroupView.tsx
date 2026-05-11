@@ -1,5 +1,6 @@
+import { createPortal } from 'react-dom';
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Share2, Calculator, Receipt, Users, IndianRupee, ArrowRight } from 'lucide-react';
+import { Plus, Share2, Calculator, Receipt, Users, IndianRupee, ArrowRight, Trash2, CreditCard } from 'lucide-react';
 import { Group } from '../types';
 import { calculateBalances, calculateSettlements, getTotalExpenses } from '../utils/calculations';
 import { simplifyDebts } from '../utils/simplifyDebts';
@@ -15,6 +16,8 @@ interface GroupViewProps {
   currentUserName?: string;
   onAddExpense: () => void;
   onDeleteExpense: (expenseId: string) => void;
+  onEditExpense?: (expenseId: string, updates: Partial<Omit<Group['expenses'][number], 'id'>>) => Promise<void> | void;
+  onDeleteGroup?: () => Promise<void> | void;
   onGenerateShareCode: () => Promise<string>;
   onOpenFairnessCalculator?: () => void;
   onRecordSettlement?: (settlement: {
@@ -26,9 +29,10 @@ interface GroupViewProps {
   }) => Promise<void> | void;
 }
 
-export function GroupView({ group, currentUserId, currentUserName, onAddExpense, onDeleteExpense, onGenerateShareCode, onOpenFairnessCalculator, onRecordSettlement }: GroupViewProps) {
+export function GroupView({ group, currentUserId, currentUserName, onAddExpense, onDeleteExpense, onEditExpense, onDeleteGroup, onGenerateShareCode, onOpenFairnessCalculator, onRecordSettlement }: GroupViewProps) {
   const [activeTab, setActiveTab] = useState<'expenses' | 'balances'>('expenses');
   const [showSimplifyDebts, setShowSimplifyDebts] = useState(false);
+  const [showPayPanel, setShowPayPanel] = useState(false);
   const [activeSettlement, setActiveSettlement] = useState<{
     from: string;
     fromId?: string;
@@ -140,6 +144,15 @@ export function GroupView({ group, currentUserId, currentUserName, onAddExpense,
     }
   };
 
+  const copyUpiLink = async (upiLink: string) => {
+    try {
+      await navigator.clipboard.writeText(upiLink);
+      setToastMessage('UPI link copied!');
+    } catch {
+      setToastMessage('Unable to copy UPI link');
+    }
+  };
+
   const openSettlementSheet = async (settlement: {
     from: string;
     fromId?: string;
@@ -209,10 +222,52 @@ export function GroupView({ group, currentUserId, currentUserName, onAddExpense,
   const handleShareLink = async () => {
     try {
       const shareLink = await onGenerateShareCode();
+
+      if (typeof navigator.share === 'function') {
+        try {
+          await navigator.share({
+            title: `${group.name} - Budget Split`,
+            text: `Join ${group.name} and split expenses together.`,
+            url: shareLink,
+          });
+          setToastMessage('Shared successfully');
+          return;
+        } catch {
+          // Fall back to clipboard copy below.
+        }
+      }
+
       await navigator.clipboard.writeText(shareLink);
-      setToastMessage('Link copied! Share it with anyone 🎉');
+      setToastMessage('Link copied!');
     } catch {
       setToastMessage('Unable to generate share link');
+    }
+  };
+
+  const handleMarkDebtSettled = async (debt: { from: string; to: string; amount: number }) => {
+    const debtor = group.members.find((member) => member.name === debt.from);
+    const creditor = group.members.find((member) => member.name === debt.to);
+
+    try {
+      const payload = {
+        from: debt.from,
+        fromId: debtor?.id,
+        to: debt.to,
+        toId: creditor?.id,
+        amount: debt.amount,
+      };
+
+      if (onRecordSettlement) {
+        await onRecordSettlement(payload);
+      } else {
+        await apiService.recordSettlement(group.id, payload);
+      }
+
+      setToastMessage('✓ Payment recorded!');
+      setShowPayPanel(false);
+    } catch (error) {
+      console.error('Failed to record pay-now settlement:', error);
+      setToastMessage('Unable to record payment');
     }
   };
   
@@ -237,28 +292,37 @@ export function GroupView({ group, currentUserId, currentUserName, onAddExpense,
     { id: 'expenses', label: 'Expenses', icon: Receipt },
     { id: 'balances', label: 'Balances', icon: Calculator },
   ] as const;
+  const isCreator = Boolean(group.createdBy && currentUserId && group.createdBy.toString() === currentUserId);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[26rem] rounded-b-[40px] bg-[radial-gradient(circle_at_top_left,rgba(124,58,237,0.18),transparent_36%),radial-gradient(circle_at_top_right,rgba(6,182,212,0.14),transparent_28%)]" />
+      <div className="pointer-events-none absolute left-[-8rem] top-32 -z-10 h-72 w-72 rounded-full bg-violet-500/20 blur-3xl" />
+      <div className="pointer-events-none absolute right-[-8rem] top-40 -z-10 h-72 w-72 rounded-full bg-cyan-500/15 blur-3xl" />
+
       <div className="space-y-6">
-        <div className="dark-card rounded-[28px] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/20 bg-violet-500/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.28em] text-violet-200">
+        <div className="app-hero-panel rounded-2xl p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)] sm:p-8">
+          <div className="absolute inset-0 app-grid-overlay opacity-15" />
+          <div className="relative flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-4 px-8 py-6">
+              <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/20 bg-violet-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.34em] text-violet-200">
                 Group overview
               </div>
-              <div>
-                <h2 className="font-display text-3xl font-semibold tracking-tight text-white sm:text-4xl">{group.name}</h2>
-                <div className="mt-3 flex flex-wrap gap-3 text-sm text-slate-400">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2">
-                    <Users className="h-4 w-4" />
+              <div className="space-y-4">
+                <h2 className="font-display text-4xl font-semibold tracking-tight text-white sm:text-5xl">{group.name}</h2>
+                <p className="max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
+                  A live workspace for every split, settlement, and invite. Everything in this room is built for clarity.
+                </p>
+                <div className="flex flex-wrap gap-3 text-sm text-slate-400">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 backdrop-blur-md">
+                    <Users className="h-4 w-4 text-violet-300" />
                     <span>{group.members.length} members</span>
                   </div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2">
-                    <Receipt className="h-4 w-4" />
+                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 backdrop-blur-md">
+                    <Receipt className="h-4 w-4 text-cyan-300" />
                     <span>{group.expenses.length} expenses</span>
                   </div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-2 text-cyan-200">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-2 text-cyan-200 backdrop-blur-md">
                     <IndianRupee className="h-4 w-4" />
                     <span className="font-semibold tabular-nums">₹{totalExpenses.toFixed(2)} total</span>
                   </div>
@@ -266,31 +330,47 @@ export function GroupView({ group, currentUserId, currentUserName, onAddExpense,
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="grid gap-3 px-8 py-6 sm:grid-cols-2 xl:grid-cols-2 xl:justify-items-end">
               <button
                 onClick={() => setShowSimplifyDebts((prev) => !prev)}
-                className="inline-flex items-center gap-2 rounded-2xl border border-violet-400/20 bg-violet-500/10 px-4 py-3 text-sm font-medium text-violet-100 transition hover:bg-violet-500/15"
+                className="inline-flex h-10 items-center gap-2 rounded-xl border border-violet-400/20 bg-violet-500/10 px-4 text-sm font-medium text-violet-100 transition hover:bg-violet-500/20"
               >
                 <Calculator className="h-4 w-4" />
                 Simplify debts
               </button>
               <button
                 onClick={handleShareLink}
-                className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-slate-200 transition hover:border-cyan-400/30 hover:bg-cyan-500/10"
+                className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-medium text-slate-200 transition hover:border-cyan-400/30 hover:bg-cyan-500/10"
               >
                 <Share2 className="h-4 w-4" />
                 Share
               </button>
               <button
+                onClick={() => setShowPayPanel(true)}
+                className="inline-flex h-10 items-center gap-2 rounded-xl border border-indigo-400/30 bg-indigo-500/10 px-4 text-sm font-medium text-indigo-100 transition hover:bg-indigo-500/20"
+              >
+                <CreditCard className="h-4 w-4" />
+                Pay Now
+              </button>
+              <button
                 onClick={onOpenFairnessCalculator}
-                className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-slate-200 transition hover:border-white/20 hover:bg-white/10"
+                className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-medium text-slate-200 transition hover:border-white/20 hover:bg-white/10"
               >
                 <Calculator className="h-4 w-4" />
                 Fairness
               </button>
+              {isCreator && (
+                <button
+                  onClick={onDeleteGroup}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-rose-400/25 bg-rose-500/10 px-4 text-sm font-medium text-rose-100 transition hover:bg-rose-500/20"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete group
+                </button>
+              )}
               <button
                 onClick={onAddExpense}
-                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-violet-500 to-cyan-500 px-4 py-3 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(124,58,237,0.22)] transition hover:from-violet-400 hover:to-cyan-400"
+                className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-cyan-500 px-4 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(124,58,237,0.22)] transition hover:from-violet-400 hover:to-cyan-400"
               >
                 <Plus className="h-4 w-4" />
                 Add expense
@@ -298,11 +378,11 @@ export function GroupView({ group, currentUserId, currentUserName, onAddExpense,
             </div>
           </div>
 
-          <div className="mt-6 flex flex-wrap gap-2">
+          <div className="mt-6 flex flex-wrap gap-3 px-8 pb-2">
             {group.members.map((member) => (
               <div
                 key={member.id}
-                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200"
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200 shadow-[0_8px_24px_rgba(0,0,0,0.12)] backdrop-blur-md"
                 title={member.upiId ? `${member.name} can receive UPI payments` : `${member.name} hasn't added UPI ID`}
               >
                 <div className={`h-2.5 w-2.5 rounded-full ${member.upiId ? 'bg-emerald-400' : 'bg-slate-500'}`} />
@@ -313,21 +393,21 @@ export function GroupView({ group, currentUserId, currentUserName, onAddExpense,
           </div>
 
           {group.shareCode && (
-            <div className="mt-5 rounded-[24px] border border-white/10 bg-white/5 p-4">
+            <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 shadow-[0_16px_50px_rgba(2,6,23,0.22)] backdrop-blur-md">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-sm font-medium text-slate-300">Share code</h3>
+                  <h3 className="text-sm font-semibold text-slate-200">Share code</h3>
                   <p className="mt-1 text-xs text-slate-500">Others can join using this code</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="rounded-2xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-2 text-lg font-semibold tracking-[0.2em] text-cyan-200">
+                  <div className="rounded-2xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-2 text-lg font-semibold tracking-[0.2em] text-cyan-200 shadow-[0_12px_30px_rgba(6,182,212,0.12)]">
                     {group.shareCode}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowShareQr(true)}
-                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-100 transition hover:bg-white/10"
-                  >
+                    <button
+                      type="button"
+                      onClick={() => setShowShareQr(true)}
+                      className="h-10 rounded-xl border border-white/10 bg-white/5 px-3 text-xs font-semibold text-slate-100 transition hover:bg-white/10"
+                    >
                     QR
                   </button>
                 </div>
@@ -360,6 +440,14 @@ export function GroupView({ group, currentUserId, currentUserName, onAddExpense,
                   {simplifiedSettlements.map((transaction, index) => {
                     const creditor = getMemberByName(transaction.to);
                     const debtor = getMemberByName(transaction.from);
+                    const receiverUpiId = creditor?.upiId?.trim() || '';
+                    const receiverName = creditor?.name || transaction.to;
+                    const amount = Number(transaction.amount || 0).toFixed(2);
+                    const upiHref = `upi://pay?pa=${receiverUpiId}&pn=${receiverName}&am=${amount}&cu=INR`;
+                    const gpayHref = `tez://upi/pay?pa=${receiverUpiId}&pn=${encodeURIComponent(receiverName)}&am=${amount}&cu=INR`;
+                    const phonePeHref = `phonepe://pay?pa=${receiverUpiId}&pn=${encodeURIComponent(receiverName)}&am=${amount}&cu=INR`;
+                    const paytmHref = `paytmmp://pay?pa=${receiverUpiId}&pn=${encodeURIComponent(receiverName)}&am=${amount}&cu=INR`;
+                    const hasReceiverUpi = Boolean(receiverUpiId);
 
                     return (
                       <div
@@ -376,6 +464,91 @@ export function GroupView({ group, currentUserId, currentUserName, onAddExpense,
                           </div>
 
                           <div className="flex flex-wrap gap-2">
+                            <a
+                              href={hasReceiverUpi ? upiHref : undefined}
+                              aria-disabled={!hasReceiverUpi}
+                              onClick={(event) => {
+                                if (!hasReceiverUpi) {
+                                  event.preventDefault();
+                                  setToastMessage('User hasn\'t added UPI ID');
+                                }
+                              }}
+                              className={`rounded-xl border px-3 py-2 text-sm font-semibold transition ${
+                                hasReceiverUpi
+                                  ? 'border-cyan-400/30 bg-cyan-500/15 text-cyan-100 hover:bg-cyan-500/20'
+                                  : 'cursor-not-allowed border-slate-500/30 bg-slate-500/10 text-slate-400'
+                              }`}
+                            >
+                              Pay via UPI
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!hasReceiverUpi) {
+                                  setToastMessage('User hasn\'t added UPI ID');
+                                  return;
+                                }
+                                window.location.href = gpayHref;
+                              }}
+                              className={`rounded-xl border px-3 py-2 text-sm font-semibold transition ${
+                                hasReceiverUpi
+                                  ? 'border-white/10 bg-white/5 text-slate-200 hover:bg-white/10'
+                                  : 'cursor-not-allowed border-slate-500/30 bg-slate-500/10 text-slate-400'
+                              }`}
+                            >
+                              GPay
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!hasReceiverUpi) {
+                                  setToastMessage('User hasn\'t added UPI ID');
+                                  return;
+                                }
+                                window.location.href = phonePeHref;
+                              }}
+                              className={`rounded-xl border px-3 py-2 text-sm font-semibold transition ${
+                                hasReceiverUpi
+                                  ? 'border-white/10 bg-white/5 text-slate-200 hover:bg-white/10'
+                                  : 'cursor-not-allowed border-slate-500/30 bg-slate-500/10 text-slate-400'
+                              }`}
+                            >
+                              PhonePe
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!hasReceiverUpi) {
+                                  setToastMessage('User hasn\'t added UPI ID');
+                                  return;
+                                }
+                                window.location.href = paytmHref;
+                              }}
+                              className={`rounded-xl border px-3 py-2 text-sm font-semibold transition ${
+                                hasReceiverUpi
+                                  ? 'border-white/10 bg-white/5 text-slate-200 hover:bg-white/10'
+                                  : 'cursor-not-allowed border-slate-500/30 bg-slate-500/10 text-slate-400'
+                              }`}
+                            >
+                              Paytm
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!hasReceiverUpi) {
+                                  setToastMessage('User hasn\'t added UPI ID');
+                                  return;
+                                }
+                                copyUpiLink(upiHref);
+                              }}
+                              className={`rounded-xl border px-3 py-2 text-sm font-semibold transition ${
+                                hasReceiverUpi
+                                  ? 'border-violet-400/30 bg-violet-500/15 text-violet-100 hover:bg-violet-500/20'
+                                  : 'cursor-not-allowed border-slate-500/30 bg-slate-500/10 text-slate-400'
+                              }`}
+                            >
+                              Copy link
+                            </button>
                             <button
                               onClick={() => openSettlementSheet({
                                 from: transaction.from,
@@ -387,10 +560,13 @@ export function GroupView({ group, currentUserId, currentUserName, onAddExpense,
                               })}
                               className="rounded-xl border border-emerald-400/30 bg-emerald-500/15 px-3 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-500/20"
                             >
-                              ⚡ Settle Up
+                              Settle Up
                             </button>
                           </div>
                         </div>
+                        {!hasReceiverUpi && (
+                          <p className="mt-2 text-xs text-amber-200/90">User hasn't added UPI ID</p>
+                        )}
                       </div>
                     );
                   })}
@@ -400,7 +576,7 @@ export function GroupView({ group, currentUserId, currentUserName, onAddExpense,
           </div>
         </div>
 
-        <div className="dark-card overflow-hidden rounded-[28px]">
+        <div className="dark-card overflow-visible rounded-[28px]">
           <div className="border-b border-white/10 px-2 sm:px-4">
             <nav className="flex">
               {tabs.map((tab) => {
@@ -433,6 +609,7 @@ export function GroupView({ group, currentUserId, currentUserName, onAddExpense,
                 currentUserId={currentUserId}
                 currentUserName={currentUserName}
                 onDeleteExpense={onDeleteExpense}
+                onEditExpense={onEditExpense}
                 onRecordSettlement={onRecordSettlement}
               />
             )}
@@ -450,9 +627,9 @@ export function GroupView({ group, currentUserId, currentUserName, onAddExpense,
         </div>
       </div>
 
-      {activeSettlement && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md">
-          <div className="w-full max-w-lg rounded-[28px] border border-white/10 bg-[#1a1a2e] p-6 shadow-2xl shadow-slate-950/50">
+      {activeSettlement && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-md" onClick={() => setActiveSettlement(null)}>
+          <div className="w-full max-w-lg rounded-[28px] border border-white/10 bg-[#1a1a2e] p-6 shadow-2xl shadow-slate-950/50" onClick={(event) => event.stopPropagation()}>
             <h3 className="font-display text-xl font-semibold tracking-tight text-white">Settle Up</h3>
             <p className="mt-2 text-sm text-slate-400">
               {activeSettlement.from} owes ₹{activeSettlement.amount.toFixed(2)} to {activeSettlement.to}
@@ -667,7 +844,84 @@ export function GroupView({ group, currentUserId, currentUserName, onAddExpense,
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
+      )}
+
+      {showPayPanel && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/70 p-4 backdrop-blur-md sm:items-center" onClick={() => setShowPayPanel(false)}>
+          <div className="w-full max-w-md rounded-[28px] border border-white/10 bg-[#1a1a2e] p-6 shadow-2xl shadow-slate-950/50" onClick={(event) => event.stopPropagation()}>
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <h3 className="font-display text-lg font-bold text-white">Settle Up</h3>
+              <button
+                type="button"
+                onClick={() => setShowPayPanel(false)}
+                className="text-2xl leading-none text-slate-400 transition hover:text-white"
+                aria-label="Close payment panel"
+              >
+                ×
+              </button>
+            </div>
+
+            {simplifiedSettlements.length === 0 ? (
+              <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-8 text-center text-emerald-300 font-medium">
+                ✓ Everyone is settled up!
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {simplifiedSettlements.map((debt, index) => {
+                  const creditor = group.members.find((member) => member.name === debt.to);
+                  const debtor = group.members.find((member) => member.name === debt.from);
+                  const isCurrentUserDebtor = Boolean(currentUserId && debtor?.id === currentUserId);
+                  const upiId = creditor?.upiId?.trim() || '';
+                  const upiLink = upiId
+                    ? `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(creditor?.name || debt.to)}&am=${debt.amount.toFixed(2)}&cu=INR&tn=${encodeURIComponent(getBudgetSplitSettlementNote(group.name))}`
+                    : null;
+
+                  return (
+                    <div key={`${debt.from}-${debt.to}-${index}`} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <div className="text-sm text-gray-300">
+                          <span className="font-medium text-white">{debt.from}</span>
+                          <span className="mx-2 text-gray-500">→</span>
+                          <span className="font-medium text-white">{debt.to}</span>
+                        </div>
+                        <span className="font-bold tabular-nums text-cyan-400">₹{debt.amount.toFixed(2)}</span>
+                      </div>
+
+                      {isCurrentUserDebtor ? (
+                        <div className="flex gap-2">
+                          {upiLink ? (
+                            <a
+                              href={upiLink}
+                              className="flex-1 rounded-lg bg-indigo-600 px-3 py-2 text-center text-xs font-medium text-white transition-colors hover:bg-indigo-500"
+                            >
+                              Pay via UPI →
+                            </a>
+                          ) : (
+                            <span className="flex-1 rounded-lg bg-white/5 px-3 py-2 text-center text-xs text-gray-500">
+                              No UPI ID on file
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleMarkDebtSettled(debt)}
+                            className="flex-1 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-gray-300 transition-colors hover:border-white/40 hover:text-white"
+                          >
+                            ✓ Mark as paid
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-500">Awaiting their payment</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

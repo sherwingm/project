@@ -12,6 +12,11 @@ export interface ExpenseItem {
   amount: number;
   paidBy: string;
   splitBetween: string[];
+  splitMethod?: 'equal' | 'exact' | 'shares' | 'percentage';
+  splits?: Array<{
+    userId: string;
+    amountOwed: number;
+  }>;
   category: string;
   date: string;
   receiptImage?: string;
@@ -20,6 +25,7 @@ export interface ExpenseItem {
 export interface Group {
   id: string;
   name: string;
+  createdBy?: string;
   members: Person[];
   expenses: ExpenseItem[];
   settlements?: RecordedSettlement[];

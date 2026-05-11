@@ -1,39 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Receipt, Users, ShieldAlert } from 'lucide-react';
-
-interface SharedSettlement {
-  from: string;
-  to: string;
-  amount: number;
-}
-
-interface SharedExpense {
-  id: string;
-  name: string;
-  amount: number;
-  paidBy: string;
-  paidByName: string;
-  splitBetween: string[];
-  category: string;
-  date: string;
-}
-
-interface SharedGroupResponse {
-  groupName: string;
-  members: Array<{
-    id: string;
-    name: string;
-    color?: string;
-  }>;
-  expenses: SharedExpense[];
-  settlements: SharedSettlement[];
-}
+import { ArrowRight, Receipt, Users, ShieldAlert, UserPlus } from 'lucide-react';
+import { apiService, SharedGroupResponse } from '../services/api';
 
 interface ShareViewProps {
   token: string;
+  isAuthenticated?: boolean;
 }
 
-export default function ShareView({ token }: ShareViewProps) {
+export default function ShareView({ token, isAuthenticated = false }: ShareViewProps) {
   const [data, setData] = useState<SharedGroupResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
@@ -57,16 +31,11 @@ export default function ShareView({ token }: ShareViewProps) {
         setIsLoading(true);
         setErrorMessage('');
 
-        const response = await fetch(`/api/share/${token}`, {
-          signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          const payload = await response.json().catch(() => null);
-          throw new Error(payload?.error || 'Unable to load share link');
+        if (controller.signal.aborted) {
+          return;
         }
 
-        const payload = (await response.json()) as SharedGroupResponse;
+        const payload = await apiService.getSharedGroup(token);
         setData(payload);
       } catch (error) {
         if (!controller.signal.aborted) {
@@ -95,6 +64,14 @@ export default function ShareView({ token }: ShareViewProps) {
                 <ShieldAlert className="h-4 w-4" />
                 <span>View-only - you’re not a member</span>
               </div>
+              <button
+                type="button"
+                onClick={() => window.location.assign(`/share/${token}/join`)}
+                className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-500/25"
+              >
+                <UserPlus className="h-4 w-4" />
+                <span>{isAuthenticated ? 'Continue to join' : 'Login to join'}</span>
+              </button>
               <div>
                 <p className="text-xs uppercase tracking-[0.28em] text-violet-300/70">Shared expense group</p>
                 <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">

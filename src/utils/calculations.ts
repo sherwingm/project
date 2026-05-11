@@ -1,5 +1,32 @@
 import { ExpenseItem, Person, Balance, Settlement, RecordedSettlement } from '../types';
 
+export interface ExpenseTrendPoint {
+  dateKey: string;
+  label: string;
+  amount: number;
+}
+
+function getExpenseSplitAmounts(expense: ExpenseItem) {
+  if (Array.isArray(expense.splits) && expense.splits.length > 0) {
+    return expense.splits
+      .filter((split) => split && split.userId)
+      .map((split) => ({
+        userId: split.userId,
+        amountOwed: Number(split.amountOwed || 0),
+      }))
+      .filter((split) => Number.isFinite(split.amountOwed));
+  }
+
+  const splitBetween = Array.isArray(expense.splitBetween) ? expense.splitBetween : [];
+  if (splitBetween.length === 0) {
+    return [];
+  }
+
+  const amount = Number(expense.amount || 0);
+  const perPerson = splitBetween.length > 0 ? amount / splitBetween.length : 0;
+  return splitBetween.map((userId) => ({ userId, amountOwed: perPerson }));
+}
+
 export function calculateBalances(
   expenses: ExpenseItem[],
   members: Person[],
@@ -13,14 +40,12 @@ export function calculateBalances(
   });
 
   expenses.forEach(expense => {
-    const splitAmount = expense.amount / expense.splitBetween.length;
-    
     // Person who paid gets credited
     balances[expense.paidBy] += expense.amount;
     
     // Everyone who should pay gets debited
-    expense.splitBetween.forEach(personId => {
-      balances[personId] -= splitAmount;
+    getExpenseSplitAmounts(expense).forEach((split) => {
+      balances[split.userId] = (balances[split.userId] || 0) - split.amountOwed;
     });
   });
 
@@ -82,4 +107,44 @@ export function getPersonExpenses(expenses: ExpenseItem[], personId: string): nu
   return expenses
     .filter(expense => expense.paidBy === personId)
     .reduce((total, expense) => total + expense.amount, 0);
+}
+
+export function aggregateExpenseTrend(
+  expenses: ExpenseItem[],
+  days: number = 7,
+  locale: string = 'en-IN'
+): ExpenseTrendPoint[] {
+  const dailyTotals = new Map<string, number>();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  for (let offset = days - 1; offset >= 0; offset -= 1) {
+    const day = new Date(today);
+    day.setDate(today.getDate() - offset);
+    const dateKey = day.toISOString().slice(0, 10);
+    dailyTotals.set(dateKey, 0);
+  }
+
+  expenses.forEach((expense) => {
+    const parsed = new Date(expense.date);
+    if (Number.isNaN(parsed.getTime())) {
+      return;
+    }
+
+    parsed.setHours(0, 0, 0, 0);
+    const dateKey = parsed.toISOString().slice(0, 10);
+    if (!dailyTotals.has(dateKey)) {
+      return;
+    }
+
+    const next = (dailyTotals.get(dateKey) || 0) + Number(expense.amount || 0);
+    dailyTotals.set(dateKey, Math.round(next * 100) / 100);
+  });
+
+  const formatter = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' });
+  return Array.from(dailyTotals.entries()).map(([dateKey, amount]) => ({
+    dateKey,
+    label: formatter.format(new Date(`${dateKey}T00:00:00`)),
+    amount,
+  }));
 }

@@ -5,7 +5,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, phone: string, password: string) => Promise<void>;
-  register: (name: string, email: string, phone: string, password: string) => Promise<void>;
+  register: (name: string, email: string, phone: string, password: string, upiId?: string) => Promise<void>;
   updateUser: (user: User) => void;
   logout: () => void;
 }
@@ -26,6 +26,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
+  const redirectToPendingJoin = () => {
+    const pendingJoinUrl = localStorage.getItem('pendingJoinUrl');
+    if (pendingJoinUrl) {
+      localStorage.removeItem('pendingJoinUrl');
+      window.location.assign(pendingJoinUrl);
+    }
+  };
+
   const login = async (email: string, phone: string, password: string) => {
     try {
       console.log('AuthContext login called with:', { email, phone });
@@ -33,19 +41,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('Login successful:', response);
       setUser(response.user);
       localStorage.setItem('currentUser', JSON.stringify(response.user));
+      redirectToPendingJoin();
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
     }
   };
 
-  const register = async (name: string, email: string, phone: string, password: string) => {
+  const register = async (name: string, email: string, phone: string, password: string, upiId?: string) => {
     try {
-      console.log('AuthContext register called with:', { name, email, phone });
-      const response = await apiService.register(name, email, phone, password);
+      console.log('AuthContext register called with:', { name, email, phone, upiId });
+      const response = await apiService.register(name, email, phone, password, upiId);
       console.log('Registration successful:', response);
       setUser(response.user);
       localStorage.setItem('currentUser', JSON.stringify(response.user));
+      redirectToPendingJoin();
     } catch (error) {
       console.error('Registration failed:', error);
       throw error;

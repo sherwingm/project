@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Calendar, MapPin, Plane, Copy, Trash2, Plus, MessageCircle, Share2 } from 'lucide-react';
+import { Users, Copy, Trash2, Plus, MessageCircle, Share2, CreditCard } from 'lucide-react';
 
 interface GroupCardProps {
   group: {
@@ -16,6 +16,7 @@ interface GroupCardProps {
       name: string;
       amount: number;
     }>;
+    userBalance?: number;
     currency: string;
     imageUrl?: string;
   };
@@ -27,6 +28,7 @@ interface GroupCardProps {
   onPayNow?: () => void;
   showPayNow?: boolean;
   showSettledBadge?: boolean;
+  canDelete?: boolean;
 }
 
 const GroupCard: React.FC<GroupCardProps> = ({
@@ -36,19 +38,10 @@ const GroupCard: React.FC<GroupCardProps> = ({
   onAddExpense,
   onPayNow,
   showPayNow = false,
-  showSettledBadge = false
+  showSettledBadge = false,
+  canDelete = false,
 }) => {
   const [isCopied, setIsCopied] = useState(false);
-
-  const getGroupEmoji = () => {
-    const value = group.name.toLowerCase();
-    if (value.includes('trip') || value.includes('travel') || value.includes('vacation') || value.includes('tour')) return '🏖️';
-    if (value.includes('food') || value.includes('dinner') || value.includes('lunch') || value.includes('meal')) return '🍜';
-    if (value.includes('party') || value.includes('birthday') || value.includes('event')) return '🎉';
-    if (value.includes('rent') || value.includes('home') || value.includes('room')) return '🏠';
-    if (value.includes('work') || value.includes('office')) return '💼';
-    return '🧳';
-  };
 
   const gradientPalettes = [
     'from-[#1A1A2E] via-[#24134A] to-[#2D1B69]',
@@ -68,25 +61,36 @@ const GroupCard: React.FC<GroupCardProps> = ({
       maximumFractionDigits: 2,
     }).format(value);
 
-  const getCoverImageUrl = () => {
-    if (group.imageUrl) return group.imageUrl;
-
-    const covers = [
-      '/images/covers/cover-1.svg',
-      '/images/covers/cover-2.svg',
-      '/images/covers/cover-3.svg',
-      '/images/covers/cover-4.svg',
-    ] as const;
-
-    let hash = 0;
-    const groupId = group.id || 'default';
-
-    for (let i = 0; i < groupId.length; i++) {
-      hash = (hash * 31 + groupId.charCodeAt(i)) | 0;
+  const renderBalanceIndicator = () => {
+    const userBalance = group.userBalance;
+    if (userBalance === undefined) {
+      return null;
     }
 
-    const idx = Math.abs(hash) % covers.length;
-    return covers[idx];
+    if (Math.abs(userBalance) < 0.01) {
+      return (
+        <span className="inline-flex items-center gap-2 rounded-full border border-slate-400/30 bg-slate-500/10 px-3 py-1 text-xs font-semibold text-slate-200">
+          <span className="h-2 w-2 rounded-full bg-slate-300" />
+          You are settled
+        </span>
+      );
+    }
+
+    if (userBalance > 0) {
+      return (
+        <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-100">
+          <span className="h-2 w-2 rounded-full bg-emerald-300" />
+          Owed to you: {formatAmount(userBalance)}
+        </span>
+      );
+    }
+
+    return (
+      <span className="inline-flex items-center gap-2 rounded-full border border-rose-400/30 bg-rose-500/10 px-3 py-1 text-xs font-semibold text-rose-100">
+        <span className="h-2 w-2 rounded-full bg-rose-300" />
+        You owe: {formatAmount(Math.abs(userBalance))}
+      </span>
+    );
   };
 
   const handleCopy = async () => {
@@ -152,7 +156,7 @@ const GroupCard: React.FC<GroupCardProps> = ({
 
   return (
     <div
-      className="group relative cursor-pointer overflow-hidden rounded-3xl border border-white/8 bg-[#1a1a2e] shadow-[0_24px_80px_rgba(2,6,23,0.45)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_28px_90px_rgba(124,58,237,0.2)]"
+      className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/8 bg-[#1a1a2e] shadow-[0_24px_80px_rgba(2,6,23,0.45)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_28px_90px_rgba(124,58,237,0.2)]"
       onClick={() => group.id && onViewDetails(group.id)}
     >
       <div className={`relative min-h-[280px] bg-gradient-to-br ${palette}`}>
@@ -161,16 +165,19 @@ const GroupCard: React.FC<GroupCardProps> = ({
 
         <div className="relative flex h-full min-h-[280px] flex-col">
           <div className="flex items-start justify-between p-4 text-white/95">
-            <div className="rounded-full border border-white/15 bg-black/20 px-3 py-1 text-xs font-medium backdrop-blur-sm">
-              👥 {group.members} members
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/20 px-3 py-1 text-xs font-medium backdrop-blur-sm">
+              <Users className="h-3.5 w-3.5" />
+              {group.members} members
             </div>
             <div className="rounded-full border border-white/15 bg-black/20 px-3 py-1 text-xs font-medium backdrop-blur-sm">
               {group.date}
             </div>
           </div>
 
-          <div className="flex flex-1 items-center justify-center px-6 pb-2 pt-2 text-6xl drop-shadow-[0_12px_28px_rgba(0,0,0,0.35)]">
-            {getGroupEmoji()}
+          <div className="flex flex-1 items-center justify-center px-6 pb-2 pt-2">
+            <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-3xl font-bold text-white shadow-[0_12px_28px_rgba(0,0,0,0.35)]">
+              {group.name.trim().charAt(0).toUpperCase() || 'G'}
+            </div>
           </div>
 
           <div className="px-5 pb-4 pt-2">
@@ -196,6 +203,10 @@ const GroupCard: React.FC<GroupCardProps> = ({
               {formatAmount(group.totalExpenses || 0)}
             </div>
 
+            <div className="mt-3">
+              {renderBalanceIndicator()}
+            </div>
+
             {showPayNow && (
               <button
                 type="button"
@@ -204,9 +215,10 @@ const GroupCard: React.FC<GroupCardProps> = ({
                   e.stopPropagation();
                   onPayNow?.();
                 }}
-                className="mt-4 w-full rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 px-4 py-3 font-sans font-semibold text-white shadow-lg shadow-emerald-600/20 transition-all duration-200 hover:brightness-110"
+                className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 font-sans font-semibold text-white shadow-lg shadow-emerald-600/20 transition-all duration-200 hover:brightness-110"
               >
-                ⚡ Pay Now
+                <CreditCard className="h-4 w-4" />
+                Pay Now
               </button>
             )}
 
@@ -270,17 +282,19 @@ const GroupCard: React.FC<GroupCardProps> = ({
                 <MessageCircle className="h-4 w-4" />
               </button>
 
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onDelete(group.id || '');
-                }}
-                className="flex h-10 flex-1 items-center justify-center rounded-lg border border-white/8 bg-white/5 text-slate-300 transition-colors hover:bg-red-500/10 hover:text-red-300"
-                title="Delete group"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+              {canDelete && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onDelete(group.id || '');
+                  }}
+                  className="flex h-10 flex-1 items-center justify-center rounded-lg border border-white/8 bg-white/5 text-slate-300 transition-colors hover:bg-red-500/10 hover:text-red-300"
+                  title="Delete group"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
             </div>
           </div>
         </div>

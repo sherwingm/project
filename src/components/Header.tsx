@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { LogOut, User, Plus, Calculator as CalculatorIcon, HelpCircle, ChevronDown, ChevronLeft, Wallet } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { NewLogo } from './NewLogo';
 import { DropdownMenuItem } from './DropdownMenuItem';
 import { User as ApiUser } from '../services/api';
@@ -12,7 +13,8 @@ interface HeaderProps {
   onNavigate?: (view: 'groups' | 'group' | 'add-expense' | 'create-group' | 'account' | 'wallet' | 'fairness-calculator' | 'contact-support') => void;
 }
 
-export function Header({ currentView, groupName, user, onLogout, onNavigate }: HeaderProps) {
+export function Header({ currentView, groupName: _groupName, user, onLogout, onNavigate }: HeaderProps) {
+  const { t } = useTranslation();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -73,7 +75,7 @@ export function Header({ currentView, groupName, user, onLogout, onNavigate }: H
               type="button"
               onClick={handleBack}
               className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-slate-300 transition-all hover:bg-white/5 hover:text-white"
-              aria-label="Go back"
+              aria-label={t('nav.goBack')}
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
@@ -97,42 +99,42 @@ export function Header({ currentView, groupName, user, onLogout, onNavigate }: H
 
               {isDropdownOpen && (
                 <div className="absolute right-0 z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-white/8 bg-[#1a1a2e] py-2 shadow-2xl shadow-slate-950/40">
-                  <div className="px-4 py-2 text-xs text-slate-400">Signed in as</div>
+                  <div className="px-4 py-2 text-xs text-slate-300">{t('nav.signedInAs')}</div>
                   <div className="px-4 pb-2 text-sm font-medium truncate text-slate-100">{user.email}</div>
                   <div className="my-1 border-t border-white/8"></div>
 
                   <DropdownMenuItem
                     icon={User}
-                    title="Your account"
-                    subtitle="Manage profile settings"
+                    title={t('nav.yourAccount')}
+                    subtitle={t('nav.manageProfileSettings')}
                     onClick={handleAccountClick}
                   />
 
                   <DropdownMenuItem
                     icon={Plus}
-                    title="Create a group"
-                    subtitle="Start a new expense group"
+                    title={t('nav.createGroup')}
+                    subtitle={t('nav.startNewExpenseGroup')}
                     onClick={handleCreateGroupClick}
                   />
 
                   <DropdownMenuItem
                     icon={CalculatorIcon}
-                    title="Fairness calculators"
-                    subtitle="Split expenses fairly"
+                    title={t('nav.fairnessCalculators')}
+                    subtitle={t('nav.splitExpensesFairly')}
                     onClick={handleFairnessCalculatorClick}
                   />
 
                   <DropdownMenuItem
                     icon={Wallet}
-                    title="Wallet"
-                    subtitle="Manage income and expenses"
+                    title={t('nav.wallet')}
+                    subtitle={t('nav.manageIncomeAndExpenses')}
                     onClick={handleWalletClick}
                   />
 
                   <DropdownMenuItem
                     icon={HelpCircle}
-                    title="Contact support"
-                    subtitle="Get help with the app"
+                    title={t('nav.contactSupport')}
+                    subtitle={t('nav.getHelp')}
                     onClick={handleSupportClick}
                   />
 
@@ -140,8 +142,8 @@ export function Header({ currentView, groupName, user, onLogout, onNavigate }: H
 
                   <DropdownMenuItem
                     icon={LogOut}
-                    title="Log out"
-                    subtitle="Sign out of your account"
+                    title={t('nav.logOut')}
+                    subtitle={t('nav.signOut')}
                     onClick={handleLogout}
                     className="text-sm text-red-300 hover:bg-red-500/10"
                   />
@@ -150,7 +152,7 @@ export function Header({ currentView, groupName, user, onLogout, onNavigate }: H
             </div>
           ) : (
             <button className="font-sans font-medium tracking-wide text-violet-300 hover:text-violet-200">
-              Sign in
+              {t('nav.signIn')}
             </button>
           )}
         </nav>

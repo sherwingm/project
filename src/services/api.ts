@@ -36,6 +36,11 @@ export interface ExpenseItem {
   amount: number;
   paidBy: string;
   splitBetween: string[];
+  splitMethod?: 'equal' | 'exact' | 'shares' | 'percentage';
+  splits?: Array<{
+    userId: string;
+    amountOwed: number;
+  }>;
   category: string;
   date: string;
   receiptImage?: string;
@@ -62,6 +67,47 @@ export interface Group {
   autoDelete?: boolean;
   deleteAfter?: 'immediately' | '1-day' | '3-days' | '7-days';
   deleteScheduledAt?: string;
+}
+
+export interface SharedSettlement {
+  from: string;
+  to: string;
+  amount: number;
+}
+
+export interface SharedExpense {
+  id: string;
+  name: string;
+  amount: number;
+  paidBy: string;
+  paidByName: string;
+  splitBetween: string[];
+  category: string;
+  date: string;
+}
+
+export interface SharedGroupResponse {
+  id: string;
+  groupName: string;
+  creatorName: string;
+  memberCount: number;
+  members: Array<{
+    id: string;
+    name: string;
+    color?: string;
+  }>;
+  expenses: SharedExpense[];
+  settlements: SharedSettlement[];
+  simplifiedSettlements?: SharedSettlement[];
+}
+
+export interface ReceiptScanResponse {
+  rawText?: string;
+  shopName?: string;
+  totalAmount?: number | null;
+  confidence?: number | null;
+  nameConfident?: boolean;
+  amountConfident?: boolean;
 }
 
 interface CreateGroupOptions {
@@ -130,10 +176,10 @@ class ApiService {
     return response;
   }
 
-  async register(name: string, email: string, phone: string, password: string): Promise<LoginResponse> {
-    const response = await this.request('/auth/login', {
+  async register(name: string, email: string, phone: string, password: string, upiId?: string): Promise<LoginResponse> {
+    const response = await this.request('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ name, email, phone, password, isLogin: false }),
+      body: JSON.stringify({ name, email, phone, password, upiId }),
     });
     
     this.token = response.token;
@@ -185,6 +231,50 @@ class ApiService {
     return this.normalizeGroup(group);
   }
 
+  async getGroupInvitePreview(groupId: string): Promise<{
+    id: string;
+    groupName: string;
+    creatorName: string;
+    memberCount: number;
+  }> {
+    return this.request(`/groups/${groupId}/invite-preview`);
+  }
+
+  async joinGroupById(groupId: string): Promise<Group> {
+    const group = await this.request(`/groups/${groupId}/join`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+
+    return this.normalizeGroup(group);
+  }
+
+  async getSharedGroup(token: string): Promise<SharedGroupResponse> {
+    return this.request(`/share/${token}`);
+  }
+
+  async joinGroupByToken(shareToken: string): Promise<Group> {
+    const group = await this.request('/groups/join-by-token', {
+      method: 'POST',
+      body: JSON.stringify({ shareToken }),
+    });
+
+    return this.normalizeGroup(group);
+  }
+
+  async scanReceipt(imageBase64: string, mimeType: string): Promise<ReceiptScanResponse> {
+    return this.request('/ocr/scan-receipt', {
+      method: 'POST',
+      body: JSON.stringify({ imageBase64, mimeType }),
+    });
+  }
+
+  async deleteGroup(groupId: string): Promise<void> {
+    await this.request(`/groups/${groupId}`, {
+      method: 'DELETE',
+    });
+  }
+
   async addExpense(groupId: string, expense: Omit<ExpenseItem, 'id' | 'date'>): Promise<ExpenseItem> {
     return this.request(`/groups/${groupId}/expenses`, {
       method: 'POST',
@@ -201,6 +291,17 @@ class ApiService {
     });
   }
 
+  async updateExpense(
+    groupId: string,
+    expenseId: string,
+    updates: Partial<Omit<ExpenseItem, 'id'>>
+  ): Promise<ExpenseItem> {
+    return this.request(`/groups/${groupId}/expenses/${expenseId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  }
+
   // Helper method to check if authenticated
   isAuthenticated(): boolean {
     return !!this.token;
@@ -212,10 +313,20 @@ class ApiService {
     return userData ? JSON.parse(userData) : null;
   }
 
-  async updateUserProfile(userId: string, name: string, upiId: string): Promise<User> {
+  async updateUserProfile(userId: string, name?: string, upiId?: string): Promise<User> {
+    const body: Record<string, string> = {};
+
+    if (name !== undefined) {
+      body.name = name;
+    }
+
+    if (upiId !== undefined) {
+      body.upiId = upiId;
+    }
+
     const response = await this.request(`/users/${userId}/profile`, {
       method: 'PUT',
-      body: JSON.stringify({ name, upiId }),
+      body: JSON.stringify(body),
     });
 
     return response.user;
@@ -233,7 +344,7 @@ class ApiService {
   }
 
   async updateUserUpiId(userId: string, upiId: string): Promise<User> {
-    const response = await this.request(`/users/${userId}/upi`, {
+    const response = await this.request(`/users/${userId}/profile`, {
       method: 'PUT',
       body: JSON.stringify({ upiId }),
     });

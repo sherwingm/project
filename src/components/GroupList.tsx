@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Plus, UserPlus, ArrowRight, Copy, Share2, Trash2 } from 'lucide-react';
+import { Users, Plus, UserPlus, Layers3, IndianRupee } from 'lucide-react';
 import { Group } from '../types';
 import GroupCard from './GroupCard';
 import { calculateBalances } from '../utils/calculations';
@@ -32,7 +32,6 @@ export function GroupList({ groups, onSelectGroup, onCreateGroup, onDeleteGroup,
   const [showJoinForm, setShowJoinForm] = useState(false);
   const [showGroupSelection, setShowGroupSelection] = useState(false);
   const [groupName, setGroupName] = useState('');
-  const [memberNames, setMemberNames] = useState(['']);
   const [shareCode, setShareCode] = useState('');
   const [autoDelete, setAutoDelete] = useState(false);
   const [deleteAfter, setDeleteAfter] = useState<'immediately' | '1-day' | '3-days' | '7-days'>('immediately');
@@ -45,17 +44,11 @@ export function GroupList({ groups, onSelectGroup, onCreateGroup, onDeleteGroup,
   } | null>(null);
   const [isRecordingSettlement, setIsRecordingSettlement] = useState(false);
 
-  const handleBack = () => {
-    window.history.back();
-  };
-
   const handleCreateGroup = (e: React.FormEvent) => {
     e.preventDefault();
-    if (groupName.trim() && memberNames.some((name) => name.trim())) {
-      const validMembers = memberNames.filter((name) => name.trim());
-      onCreateGroup(groupName.trim(), validMembers, { autoDelete, deleteAfter });
+    if (groupName.trim()) {
+      onCreateGroup(groupName.trim(), [], { autoDelete, deleteAfter });
       setGroupName('');
-      setMemberNames(['']);
       setAutoDelete(false);
       setDeleteAfter('immediately');
       setShowCreateForm(false);
@@ -71,26 +64,21 @@ export function GroupList({ groups, onSelectGroup, onCreateGroup, onDeleteGroup,
     }
   };
 
-  const addMemberField = () => setMemberNames((prev) => [...prev, '']);
-
-  const updateMemberName = (index: number, name: string) => {
-    setMemberNames((prev) => prev.map((memberName, memberIndex) => (memberIndex === index ? name : memberName)));
-  };
-
-  const removeMemberField = (index: number) => {
-    setMemberNames((prev) => (prev.length > 1 ? prev.filter((_, memberIndex) => memberIndex !== index) : prev));
-  };
-
   const getUserPaySummary = (group: Group) => {
     const userMember = group.members.find((member) => member.id === currentUserId)
       || group.members.find((member) => member.name === currentUserName);
 
     if (!userMember) {
-      return { userMember: null, owes: [] as Array<{ from: string; to: string; amount: number; toId?: string }> };
+      return {
+        userMember: null,
+        userBalance: 0,
+        owes: [] as Array<{ from: string; to: string; amount: number; toId?: string }>,
+      };
     }
 
     const balances = calculateBalances(group.expenses, group.members, group.settlements || []);
     const byName: Record<string, number> = {};
+    const userBalance = balances.find((balance) => balance.personId === userMember.id)?.balance || 0;
 
     balances.forEach((balance) => {
       const member = group.members.find((m) => m.id === balance.personId);
@@ -106,7 +94,7 @@ export function GroupList({ groups, onSelectGroup, onCreateGroup, onDeleteGroup,
         toId: group.members.find((member) => member.name === settlement.to)?.id,
       }));
 
-    return { userMember, owes };
+    return { userMember, userBalance, owes };
   };
 
   const openPayNow = (group: Group) => {
@@ -183,15 +171,15 @@ export function GroupList({ groups, onSelectGroup, onCreateGroup, onDeleteGroup,
 
         <div className="mb-6 flex flex-wrap gap-3 rounded-2xl border border-white/6 bg-white/5 p-3 backdrop-blur-md">
           <div className="flex items-center gap-2 rounded-xl border border-white/6 bg-white/5 px-4 py-3 text-sm text-slate-200">
-            <span className="text-violet-300">✦</span>
+            <Layers3 className="h-4 w-4 text-violet-300" />
             <span>{groups.length} Groups</span>
           </div>
           <div className="flex items-center gap-2 rounded-xl border border-white/6 bg-white/5 px-4 py-3 text-sm text-slate-200">
-            <span className="text-cyan-300">₹</span>
+            <IndianRupee className="h-4 w-4 text-cyan-300" />
             <span>{new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(groups.reduce((sum, group) => sum + (group.expenses || []).reduce((groupSum, expense) => groupSum + expense.amount, 0), 0))} Total Tracked</span>
           </div>
           <div className="flex items-center gap-2 rounded-xl border border-white/6 bg-white/5 px-4 py-3 text-sm text-slate-200">
-            <span className="text-emerald-300">👥</span>
+            <Users className="h-4 w-4 text-emerald-300" />
             <span>{groups.reduce((sum, group) => sum + group.members.length, 0)} Members</span>
           </div>
         </div>
@@ -222,7 +210,7 @@ export function GroupList({ groups, onSelectGroup, onCreateGroup, onDeleteGroup,
 
         {showCreateForm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-md">
-            <div className="w-full max-w-md rounded-3xl border border-white/8 bg-[#1a1a2e] p-6 shadow-2xl shadow-slate-950/50">
+            <div className="w-full max-w-md rounded-2xl border border-white/8 bg-[#1a1a2e] p-6 shadow-2xl shadow-slate-950/50">
               <h3 className="font-display mb-4 text-lg font-semibold tracking-tight text-slate-100">Create New Group</h3>
               <form onSubmit={handleCreateGroup}>
                   <div className="mb-4">
@@ -236,31 +224,8 @@ export function GroupList({ groups, onSelectGroup, onCreateGroup, onDeleteGroup,
                       required
                     />
                   </div>
-                  <div className="mb-4">
-                    <label className="font-sans mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Members</label>
-                    {memberNames.map((name, index) => (
-                      <div key={index} className="mb-2 flex space-x-2">
-                        <input
-                          type="text"
-                          value={name}
-                          onChange={(e) => updateMemberName(index, e.target.value)}
-                          className="font-sans flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-3 font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
-                          placeholder="Member name"
-                        />
-                        {memberNames.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeMemberField(index)}
-                            className="rounded-lg border border-white/8 px-3 py-2 text-red-300 transition-colors hover:bg-red-500/10"
-                          >
-                            ×
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                    <button type="button" onClick={addMemberField} className="font-sans text-sm font-medium tracking-wide text-cyan-300 hover:text-cyan-200">
-                      + Add member
-                    </button>
+                  <div className="mb-4 rounded-xl border border-white/8 bg-white/5 p-4 text-sm text-slate-300">
+                    This group will start with only you. Invite friends after creation.
                   </div>
                   <div className="mb-4 rounded-xl border border-white/8 bg-white/5 p-4">
                     <label className="font-sans flex items-center gap-3 text-sm font-normal text-slate-200">
@@ -310,7 +275,7 @@ export function GroupList({ groups, onSelectGroup, onCreateGroup, onDeleteGroup,
 
           {showJoinForm && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-md">
-              <div className="w-full max-w-md rounded-3xl border border-white/8 bg-[#1a1a2e] p-6 shadow-2xl shadow-slate-950/50">
+              <div className="w-full max-w-md rounded-2xl border border-white/8 bg-[#1a1a2e] p-6 shadow-2xl shadow-slate-950/50">
                 <h3 className="font-display mb-4 text-lg font-semibold tracking-tight text-slate-100">Join Group</h3>
                 <form onSubmit={handleJoinGroup}>
                   <div className="mb-4">
@@ -347,8 +312,10 @@ export function GroupList({ groups, onSelectGroup, onCreateGroup, onDeleteGroup,
 
           <div className="mt-6">
             {groups.length === 0 ? (
-              <div className="mx-auto max-w-2xl rounded-3xl border border-white/8 bg-[#1a1a2e] p-10 text-center shadow-[0_24px_80px_rgba(2,6,23,0.4)]">
-                <div className="mb-4 text-7xl" aria-hidden="true">🧳</div>
+              <div className="mx-auto max-w-2xl rounded-2xl border border-white/8 bg-[#1a1a2e] p-10 text-center shadow-[0_24px_80px_rgba(2,6,23,0.4)]">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-2xl font-semibold text-white" aria-hidden="true">
+                  G
+                </div>
                 <h3 className="font-display mb-2 text-2xl font-semibold text-slate-100">No trips yet</h3>
                 <p className="mb-6 text-slate-400">Create your first group and start splitting!</p>
                 <button
@@ -363,9 +330,10 @@ export function GroupList({ groups, onSelectGroup, onCreateGroup, onDeleteGroup,
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
                 {groups.map((group, index) => (
                   (() => {
-                    const { userMember, owes } = getUserPaySummary(group);
+                    const { userMember, userBalance, owes } = getUserPaySummary(group);
                     const showPayNow = owes.length > 0;
                     const showSettledBadge = Boolean(userMember) && !showPayNow;
+                    const canDelete = Boolean(group.createdBy && currentUserId && group.createdBy === currentUserId);
 
                     return (
                   <GroupCard
@@ -384,6 +352,7 @@ export function GroupList({ groups, onSelectGroup, onCreateGroup, onDeleteGroup,
                         name: expense.name,
                         amount: expense.amount,
                       })),
+                      userBalance,
                       currency: '₹'
                     }}
                     onViewDetails={() => onSelectGroup(group)}
@@ -394,6 +363,7 @@ export function GroupList({ groups, onSelectGroup, onCreateGroup, onDeleteGroup,
                     }}
                     showPayNow={showPayNow}
                     showSettledBadge={showSettledBadge}
+                    canDelete={canDelete}
                     onPayNow={() => openPayNow(group)}
                   />
                     );
@@ -405,7 +375,7 @@ export function GroupList({ groups, onSelectGroup, onCreateGroup, onDeleteGroup,
 
           {showGroupSelection && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-md">
-              <div className="mx-4 w-full max-w-md rounded-3xl border border-white/8 bg-[#1a1a2e] p-6 shadow-2xl shadow-slate-950/50">
+              <div className="mx-4 w-full max-w-md rounded-2xl border border-white/8 bg-[#1a1a2e] p-6 shadow-2xl shadow-slate-950/50">
                 <h3 className="font-display mb-4 text-lg font-semibold tracking-tight text-slate-100">Select a Group</h3>
                 <p className="font-sans mb-4 text-slate-400">Choose which group to add the expense to:</p>
                 <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
@@ -435,7 +405,7 @@ export function GroupList({ groups, onSelectGroup, onCreateGroup, onDeleteGroup,
 
           {payNowState && (
             <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4">
-              <div className="w-full rounded-t-[28px] border border-white/10 bg-[#1a1a2e] p-6 shadow-2xl shadow-slate-950/50 sm:max-w-lg sm:rounded-[28px]">
+              <div className="w-full rounded-t-2xl border border-white/10 bg-[#1a1a2e] p-6 shadow-2xl shadow-slate-950/50 sm:max-w-lg sm:rounded-2xl">
                 <h3 className="font-display text-xl font-semibold text-white">Pay Now</h3>
                 <p className="mt-1 text-sm text-slate-400">{payNowState.group.name}</p>
 

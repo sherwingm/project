@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Plus, Users, X } from 'lucide-react';
+import { Users, X, Link2 } from 'lucide-react';
 
 interface CreateGroupViewProps {
   onCreateGroup: (
@@ -12,37 +12,23 @@ interface CreateGroupViewProps {
 
 export function CreateGroupView({ onCreateGroup, onCancel }: CreateGroupViewProps) {
   const [groupName, setGroupName] = useState('');
-  const [memberNames, setMemberNames] = useState<string[]>(['']);
   const [autoDelete, setAutoDelete] = useState(false);
   const [deleteAfter, setDeleteAfter] = useState<'immediately' | '1-day' | '3-days' | '7-days'>('immediately');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canSubmit = useMemo(() => {
     const hasName = groupName.trim().length > 0;
-    const hasAnyMember = memberNames.some((m) => m.trim().length > 0);
-    return hasName && hasAnyMember && !isSubmitting;
-  }, [groupName, memberNames, isSubmitting]);
-
-  const addMemberField = () => setMemberNames((prev) => [...prev, '']);
-
-  const updateMemberName = (index: number, name: string) => {
-    setMemberNames((prev) => prev.map((m, i) => (i === index ? name : m)));
-  };
-
-  const removeMemberField = (index: number) => {
-    setMemberNames((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)));
-  };
+    return hasName && !isSubmitting;
+  }, [groupName, isSubmitting]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
 
-    const validMembers = memberNames.map((m) => m.trim()).filter(Boolean);
     setIsSubmitting(true);
     try {
-      await onCreateGroup(groupName.trim(), validMembers, { autoDelete, deleteAfter });
+      await onCreateGroup(groupName.trim(), [], { autoDelete, deleteAfter });
       setGroupName('');
-      setMemberNames(['']);
       setAutoDelete(false);
       setDeleteAfter('immediately');
       onCancel();
@@ -76,17 +62,17 @@ export function CreateGroupView({ onCreateGroup, onCancel }: CreateGroupViewProp
             <div className="dark-card rounded-[28px] p-6">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-500/15 text-violet-200">
-                  <Users className="h-5 w-5" />
+                  <Link2 className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-display text-lg font-medium tracking-tight text-white">Tip</p>
-                  <p className="text-sm text-slate-400">Use real names so balances stay easy to track.</p>
+                  <p className="font-display text-lg font-medium tracking-tight text-white">Invite-based setup</p>
+                  <p className="text-sm text-slate-400">Create the room first, then invite real members with a link.</p>
                 </div>
               </div>
               <ul className="mt-6 space-y-3 text-sm text-slate-300">
-                <li className="rounded-2xl border border-white/8 bg-white/5 px-4 py-3">Add at least 1 member</li>
-                <li className="rounded-2xl border border-white/8 bg-white/5 px-4 py-3">You can edit group expenses later</li>
-                <li className="rounded-2xl border border-white/8 bg-white/5 px-4 py-3">Share code can be generated inside the group</li>
+                <li className="rounded-2xl border border-white/8 bg-white/5 px-4 py-3">Only the creator is added at first</li>
+                <li className="rounded-2xl border border-white/8 bg-white/5 px-4 py-3">Invite friends from the group page</li>
+                <li className="rounded-2xl border border-white/8 bg-white/5 px-4 py-3">No ghost members during creation</li>
               </ul>
             </div>
           </div>
@@ -111,42 +97,8 @@ export function CreateGroupView({ onCreateGroup, onCancel }: CreateGroupViewProp
                   />
                 </div>
 
-                <div>
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <label className="block text-sm font-medium text-slate-300">Members</label>
-                    <button
-                      type="button"
-                      onClick={addMemberField}
-                      className="inline-flex items-center gap-2 rounded-full border border-violet-400/20 bg-violet-500/10 px-3 py-2 text-sm font-medium text-violet-200 transition hover:bg-violet-500/15"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Add member
-                    </button>
-                  </div>
-
-                  <div className="space-y-3">
-                    {memberNames.map((name, index) => (
-                      <div key={index} className="flex items-center gap-3">
-                        <input
-                          type="text"
-                          value={name}
-                          onChange={(e) => updateMemberName(index, e.target.value)}
-                          className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-slate-100 placeholder:text-slate-500 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/25"
-                          placeholder={`Member ${index + 1} name`}
-                        />
-                        {memberNames.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeMemberField(index)}
-                            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-slate-300 transition hover:border-rose-400/40 hover:bg-rose-500/10 hover:text-rose-200"
-                            aria-label="Remove member"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                <div className="rounded-[24px] border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+                  The group will be created with only you inside it. Invite friends after creation.
                 </div>
 
                 <div className="rounded-[24px] border border-white/10 bg-white/5 p-4">

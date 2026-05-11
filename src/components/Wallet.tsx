@@ -88,16 +88,36 @@ export function Wallet({ onBack }: WalletProps) {
     .reduce((sum, t) => sum + t.amount, 0);
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] py-8 text-slate-100">
+    <div className="relative min-h-screen bg-[#0f0f1a] py-8 text-slate-100">
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,rgba(124,58,237,0.18),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(6,182,212,0.12),transparent_34%)]" />
-      <div className="mx-auto max-w-4xl px-4">
-        <div className="mb-8 flex items-center gap-4">
+      <div className="pointer-events-none absolute left-[-6rem] top-24 -z-10 h-64 w-64 rounded-full bg-violet-500/15 blur-3xl" />
+      <div className="pointer-events-none absolute right-[-5rem] top-40 -z-10 h-72 w-72 rounded-full bg-cyan-500/15 blur-3xl" />
+      <div className="mx-auto max-w-6xl px-4">
+        <div className="mb-6 flex items-center gap-4">
           <button onClick={onBack} className="rounded-2xl border border-white/10 bg-white/5 p-2 transition hover:bg-white/10">
             <ArrowLeft className="h-6 w-6 text-slate-200" />
           </button>
           <div>
-            <p className="text-xs uppercase tracking-[0.28em] text-violet-300/70">Wallet</p>
-            <h1 className="font-display text-3xl font-bold tracking-tight text-white">Wallet</h1>
+            <p className="text-xs uppercase tracking-[0.34em] text-cyan-300/70">Wallet</p>
+            <h1 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">Wallet</h1>
+          </div>
+        </div>
+
+        <div className="app-hero-panel mb-8 rounded-[36px] p-6 sm:p-8">
+          <div className="absolute inset-0 app-grid-overlay opacity-15" />
+          <div className="relative grid gap-4 md:grid-cols-3">
+            <div className="rounded-[24px] border border-white/10 bg-white/5 p-4 backdrop-blur-md">
+              <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Balance</p>
+              <p className="mt-3 text-3xl font-bold text-cyan-200">₹{balance.toFixed(2)}</p>
+            </div>
+            <div className="rounded-[24px] border border-white/10 bg-white/5 p-4 backdrop-blur-md">
+              <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Income</p>
+              <p className="mt-3 text-3xl font-bold text-emerald-300">₹{incomeTotal.toFixed(2)}</p>
+            </div>
+            <div className="rounded-[24px] border border-white/10 bg-white/5 p-4 backdrop-blur-md">
+              <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Expenses</p>
+              <p className="mt-3 text-3xl font-bold text-rose-300">₹{expenseTotal.toFixed(2)}</p>
+            </div>
           </div>
         </div>
 
@@ -108,7 +128,7 @@ export function Wallet({ onBack }: WalletProps) {
           </div>
         ) : (
           <>
-            <div className="dark-card mb-8 rounded-[28px] p-8">
+            <div className="dark-card mb-8 rounded-[30px] p-8 shadow-[0_24px_80px_rgba(0,0,0,0.22)]">
               <div className="mb-6 flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-white">Total Balance</h2>
                 <WalletIcon className="h-8 w-8 text-cyan-300" />
@@ -117,7 +137,7 @@ export function Wallet({ onBack }: WalletProps) {
             </div>
 
             <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div className="dark-card rounded-[24px] p-6">
+              <div className="dark-card rounded-[28px] p-6 shadow-[0_18px_50px_rgba(0,0,0,0.18)]">
                 <div className="mb-2 flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-white">Total Income</h3>
                   <Plus className="h-6 w-6 text-emerald-300" />
@@ -125,7 +145,7 @@ export function Wallet({ onBack }: WalletProps) {
                 <p className="text-3xl font-bold text-emerald-300">₹{incomeTotal.toFixed(2)}</p>
               </div>
 
-              <div className="dark-card rounded-[24px] p-6">
+              <div className="dark-card rounded-[28px] p-6 shadow-[0_18px_50px_rgba(0,0,0,0.18)]">
                 <div className="mb-2 flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-white">Total Expenses</h3>
                   <Minus className="h-6 w-6 text-rose-300" />
@@ -145,7 +165,7 @@ export function Wallet({ onBack }: WalletProps) {
             </div>
 
             {showAddTransaction && (
-              <div className="dark-card mb-8 rounded-[28px] p-6">
+              <div className="dark-card mb-8 rounded-[30px] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.2)]">
                 <h3 className="mb-6 text-lg font-semibold text-white">Add Transaction</h3>
                 <div className="space-y-4">
                   <div>
@@ -186,7 +206,7 @@ export function Wallet({ onBack }: WalletProps) {
               </div>
             )}
 
-            <div className="dark-card overflow-hidden rounded-[28px]">
+            <div className="dark-card overflow-hidden rounded-[30px] shadow-[0_24px_80px_rgba(0,0,0,0.22)]">
               <div className="border-b border-white/10 p-6">
                 <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
                   <TrendingUp className="h-5 w-5 text-cyan-300" />
