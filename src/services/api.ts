@@ -1,4 +1,4 @@
-const API_BASE_URL = '/api';
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'https://budgetsplitexpenser.onrender.com/api').replace(/\/$/, '');
 
 // Types
 export interface User {
