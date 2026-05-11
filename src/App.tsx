@@ -12,12 +12,12 @@ import { FairnessCalculator } from './components/FairnessCalculator';
 import { ContactSupport } from './components/ContactSupport';
 import { VolumeTrendChart } from './components/VolumeTrendChart';
 import JoinGroup from './pages/JoinGroup';
-import ShareView from './pages/ShareView';
 import JoinSharedGroup from './pages/JoinSharedGroup';
 import { Group, ExpenseItem } from './types';
 import { Group as ApiGroup } from './services/api';
 import { useAuth } from './contexts/AuthContext';
 import { apiService } from './services/api';
+import { buildMemberShareUrl, findMemberByIdentifier, normalizeShareIdentifier } from './utils/share';
 
 // URL utility functions
 const getJoinCodeFromUrl = (): string | null => {
@@ -87,8 +87,6 @@ function App() {
   const [pendingJoinCode, setPendingJoinCode] = useState<string | null>(null);
   const shareJoinPathMatch = window.location.pathname.match(/^\/share\/([^/]+)\/join\/?$/);
   const shareJoinToken = shareJoinPathMatch?.[1] || null;
-  const sharePathMatch = window.location.pathname.match(/^\/share\/([^/]+)\/?$/);
-  const shareToken = sharePathMatch?.[1] || null;
   const joinPathCode = getJoinCodeFromPath();
 
   useEffect(() => {
@@ -272,9 +270,22 @@ function App() {
     }
     
     try {
-      const groupId = selectedGroup.id || selectedGroup._id;
-      const shareToken = await apiService.generateShareToken(groupId);
-      return `${window.location.origin}/share/${shareToken}`;
+      const groupShareCode = selectedGroup.shareCode || selectedGroup.id || selectedGroup._id;
+      const currentMember =
+        findMemberByIdentifier(selectedGroup.members, user?.id || '') ||
+        (user?.name ? findMemberByIdentifier(selectedGroup.members, user.name) : undefined) ||
+        selectedGroup.members[0];
+
+      if (!groupShareCode) {
+        throw new Error('Group share code is unavailable');
+      }
+
+      const memberIdentifier = currentMember?.id || currentMember?.name || user?.name;
+      if (!memberIdentifier) {
+        throw new Error('No member available for this share link');
+      }
+
+      return buildMemberShareUrl(groupShareCode, memberIdentifier);
     } catch (error) {
       console.error('Failed to generate share link:', error);
       throw error;
@@ -329,10 +340,6 @@ function App() {
         onLoginRequested={handleRequestLoginForInvite}
       />
     );
-  }
-
-  if (shareToken) {
-    return <ShareView token={shareToken} isAuthenticated={Boolean(user)} />;
   }
 
   if (joinPathCode) {

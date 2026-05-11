@@ -8,6 +8,27 @@ export function getJoinUrl(shareCode: string): string {
   return `${origin}${pathname}?join=${encodeURIComponent(shareCode)}`;
 }
 
+export function normalizeShareIdentifier(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+export function buildMemberShareUrl(groupShareCode: string, memberIdentifier: string): string {
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const normalizedGroupCode = encodeURIComponent(groupShareCode.trim());
+  const normalizedMemberId = encodeURIComponent(normalizeShareIdentifier(memberIdentifier));
+
+  return `${origin}/share/${normalizedGroupCode}/member/${normalizedMemberId}`;
+}
+
+export function findMemberByIdentifier<T extends { id?: string; name: string }>(members: T[], memberIdentifier: string): T | undefined {
+  const normalizedIdentifier = normalizeShareIdentifier(memberIdentifier);
+
+  return members.find((member) => {
+    const candidateIds = [member.id, member.name].filter(Boolean).map((value) => normalizeShareIdentifier(String(value)));
+    return candidateIds.includes(normalizedIdentifier);
+  });
+}
+
 /**
  * Copy join URL to clipboard. Returns true if successful.
  */

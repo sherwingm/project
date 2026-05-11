@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Users, Copy, Trash2, Plus, MessageCircle, Share2, CreditCard } from 'lucide-react';
+import { buildMemberShareUrl } from '../utils/share';
 
 interface GroupCardProps {
   group: {
@@ -9,7 +10,9 @@ interface GroupCardProps {
     members: number;
     date: string;
     totalExpenses: number;
+    shareCode?: string;
     shareToken?: string;
+    memberIdentifier?: string;
     variantIndex?: number;
     expenses?: Array<{
       id: string;
@@ -95,9 +98,11 @@ const GroupCard: React.FC<GroupCardProps> = ({
 
   const handleCopy = async () => {
     if (group.id) {
-      const shareLink = group.shareToken
-        ? `${window.location.origin}/share/${group.shareToken}`
-        : `${window.location.origin}?join=${group.id}`;
+      const shareLink = group.shareCode && group.memberIdentifier
+        ? buildMemberShareUrl(group.shareCode, group.memberIdentifier)
+        : group.shareToken
+          ? `${window.location.origin}/share/${group.shareToken}`
+          : `${window.location.origin}?join=${group.id}`;
 
       console.log('Attempting to copy share link:', shareLink);
       
@@ -123,9 +128,11 @@ const GroupCard: React.FC<GroupCardProps> = ({
 
   const handleNativeShare = async () => {
     if (group.id && typeof navigator.share === 'function') {
-      const joinLink = group.shareToken
-        ? `${window.location.origin}/share/${group.shareToken}`
-        : `${window.location.origin}?join=${group.id}`;
+      const joinLink = group.shareCode && group.memberIdentifier
+        ? buildMemberShareUrl(group.shareCode, group.memberIdentifier)
+        : group.shareToken
+          ? `${window.location.origin}/share/${group.shareToken}`
+          : `${window.location.origin}?join=${group.id}`;
       const shareMessage = `Join my expense group "${group.name}"`;
       
       try {
@@ -145,9 +152,11 @@ const GroupCard: React.FC<GroupCardProps> = ({
 
   const handleWhatsAppShare = () => {
     if (group.id) {
-      const joinLink = group.shareToken
-        ? `${window.location.origin}/share/${group.shareToken}`
-        : `${window.location.origin}?join=${group.id}`;
+      const joinLink = group.shareCode && group.memberIdentifier
+        ? buildMemberShareUrl(group.shareCode, group.memberIdentifier)
+        : group.shareToken
+          ? `${window.location.origin}/share/${group.shareToken}`
+          : `${window.location.origin}?join=${group.id}`;
       const message = `Join my expense group "${group.name}" using this link: ${joinLink}`;
       const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
       window.open(whatsappUrl, '_blank');

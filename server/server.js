@@ -8,13 +8,27 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const MONGODB_URI = process.env.MONGODB_URI || (NODE_ENV !== 'production' ? 'mongodb://localhost:27017/budget-split-expenser' : '');
+const FRONTEND_ORIGINS = (process.env.FRONTEND_URL || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+if (!MONGODB_URI) {
+  console.error('MONGODB_URI is required in production.');
+  process.exit(1);
+}
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: FRONTEND_ORIGINS.length > 0 ? FRONTEND_ORIGINS : true,
+  credentials: true,
+}));
 app.use(express.json());
 
 // MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/budget-split-expenser', {
+mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
@@ -944,7 +958,9 @@ app.get('/api/share/:token', async (req, res) => {
   try {
     const { token } = req.params;
 
-    const group = await Group.findOne({ shareToken: token });
+    const group = await Group.findOne({
+      $or: [{ shareToken: token }, { shareCode: token }],
+    });
     if (!group) {
       return res.status(404).json({ error: 'Share link not found' });
     }
@@ -1324,7 +1340,7 @@ app.get('/api/wallet/:userId', authenticateToken, async (req, res) => {
     
     // For demo, create or get wallet from database
     const { MongoClient } = require('mongodb');
-    const client = new MongoClient(process.env.MONGODB_URI || 'mongodb://localhost:27017/budget-split-expenser');
+    const client = new MongoClient(MONGODB_URI);
     await client.connect();
     const db = client.db('budget-split-expenser');
     
@@ -1354,7 +1370,7 @@ app.get('/api/wallet/:userId/transactions', authenticateToken, async (req, res) 
     const { userId } = req.params;
     
     const { MongoClient } = require('mongodb');
-    const client = new MongoClient(process.env.MONGODB_URI || 'mongodb://localhost:27017/budget-split-expenser');
+    const client = new MongoClient(MONGODB_URI);
     await client.connect();
     const db = client.db('budget-split-expenser');
     
@@ -1374,7 +1390,7 @@ app.post('/api/wallet/:userId/transaction', authenticateToken, async (req, res) 
     const { type, description, amount, category } = req.body;
     
     const { MongoClient } = require('mongodb');
-    const client = new MongoClient(process.env.MONGODB_URI || 'mongodb://localhost:27017/budget-split-expenser');
+    const client = new MongoClient(MONGODB_URI);
     await client.connect();
     const db = client.db('budget-split-expenser');
     
