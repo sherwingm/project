@@ -199,6 +199,47 @@ function extractAmountFromText(text) {
   return fallbackAmounts.length > 0 ? fallbackAmounts[0] : null;
 }
 
+function extractItemFromText(text) {
+  const lines = String(text || '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  for (const line of lines) {
+    if (/(bill\s*no|grand\s*total|subtotal|total\s*due|final\s*amount|amount\s*payable|date\b|time\b|\bdt\b)/i.test(line)) {
+      continue;
+    }
+
+    if ((line.match(/[A-Za-z]/g) || []).length < 3) {
+      continue;
+    }
+
+    const quantityHint = /\b\d+\s*(?:no|nos|qty|pcs|pc|x)\b/i.test(line);
+    const amounts = Array.from(line.matchAll(/(?:₹|rs\.?|inr|\$|€)?\s*([\d,]+(?:\.\d{1,2})?)/gi))
+      .map((match) => normalizeAmountValue(match[1]))
+      .filter((value) => value !== null);
+
+    if (amounts.length === 0 || (!quantityHint && amounts.length < 2)) {
+      continue;
+    }
+
+    const amount = amounts[amounts.length - 1];
+    const name = line
+      .replace(/\b\d+\s*(?:no|nos|qty|pcs|pc|x)\b/gi, ' ')
+      .replace(/(?:₹|rs\.?|inr|\$|€)?\s*[\d,]+(?:\.\d{1,2})?/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!name) {
+      continue;
+    }
+
+    return { name, amount };
+  }
+
+  return null;
+}
+
 function extractShopNameFromText(text) {
   const lines = String(text || '')
     .split(/\r?\n/)
@@ -905,10 +946,11 @@ Rules:
       : null;
     const parsedAmount = normalizeAmountValue(parsed?.totalAmount ?? parsed?.amount);
 
+    const fallbackItem = extractItemFromText(rawText || text);
     const fallbackShopName = extractShopNameFromText(rawText || text);
-    const fallbackAmount = extractAmountFromText(rawText || text);
+    const fallbackAmount = fallbackItem?.amount ?? extractAmountFromText(rawText || text);
 
-    const shopName = parsedShopName || fallbackShopName;
+    const shopName = parsedShopName || fallbackItem?.name || fallbackShopName;
     const totalAmount = parsedAmount ?? fallbackAmount;
     const amountConfident = totalAmount !== null && totalAmount > 0;
     const nameConfident = Boolean(shopName);
